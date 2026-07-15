@@ -1,0 +1,149 @@
+<!doctype html>
+<html lang="en">
+    <head>
+        <meta charset="UTF-8" />
+        <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+        <title>Login</title>
+        <style>
+            html,
+            body {
+                height: 100%;
+                margin: 0;
+            }
+            body {
+                font-family: Arial, sans-serif;
+                display: flex;
+                justify-content: center;
+                align-items: center;
+                background-color: #f5f5f5;
+            }
+            .login-container {
+                width: 100%;
+                max-width: 400px;
+                padding: 30px;
+                border: 1px solid #ddd;
+                border-radius: 8px;
+                background-color: #fff;
+                box-shadow: 0 4px 12px rgba(0, 0, 0, 0.1);
+                box-sizing: border-box;
+                text-align: center;
+            }
+            input {
+                width: 100%;
+                padding: 12px;
+                margin: 15px 0;
+                border: 1px solid #ccc;
+                border-radius: 4px;
+                box-sizing: border-box;
+                font-size: 16px;
+            }
+
+            /* Buttons style */
+            .btn {
+                width: 100%;
+                padding: 12px;
+                border: none;
+                border-radius: 4px;
+                cursor: pointer;
+                font-size: 16px;
+                margin-bottom: 10px;
+                font-weight: bold;
+            }
+            .btn-login {
+                background-color: #28a745;
+                color: white;
+            }
+            .btn-login:hover {
+                background-color: #218838;
+            }
+            .btn-logout {
+                background-color: #dc3545;
+                color: white;
+                display: none;
+            } /* Hidden by default */
+            .btn-logout:hover {
+                background-color: #c82333;
+            }
+
+            .token-info {
+                font-size: 13px;
+                color: #666;
+                margin-top: 15px;
+                word-break: break-all;
+                background: #f9f9f9;
+                padding: 8px;
+                border-radius: 4px;
+                display: none;
+            }
+        </style>
+    </head>
+    <body>
+        <div class="login-container">
+            <h2 style="margin-top: 0">Authorization</h2>
+            <p style="color: #666; font-size: 14px; margin-bottom: 5px">
+                Enter your access token
+            </p>
+
+            <div id="tokenInfo" class="token-info"></div>
+
+            <input
+                type="text"
+                id="tokenInput"
+                placeholder="Server X-Token"
+                required
+            />
+
+            <button class="btn btn-login" onclick="saveTokenAndRedirect()">
+                Login
+            </button>
+            <button
+                id="logoutBtn"
+                class="btn btn-logout"
+                onclick="clearToken()"
+            >
+                token reset
+            </button>
+        </div>
+
+        <script>
+            window.onload = function () {
+                const savedToken = localStorage.getItem("user_token");
+                const tokenInfo = document.getElementById("tokenInfo");
+                const logoutBtn = document.getElementById("logoutBtn");
+                const tokenInput = document.getElementById("tokenInput");
+
+                if (savedToken) {
+                    tokenInfo.textContent = `Current saved token: ${savedToken}`;
+                    tokenInfo.style.display = "block";
+                    logoutBtn.style.display = "block";
+
+                    tokenInput.value = savedToken;
+                }
+            };
+
+            function saveTokenAndRedirect() {
+                const token = document
+                    .getElementById("tokenInput")
+                    .value.trim();
+
+                if (!token) {
+                    alert("Please, enter your token.");
+                    return;
+                }
+
+                localStorage.setItem("user_token", token);
+                window.location.href = `/devices?token=${encodeURIComponent(token)}`;
+            }
+
+            function clearToken() {
+                localStorage.removeItem("user_token");
+
+                document.getElementById("tokenInput").value = "";
+                document.getElementById("tokenInfo").style.display = "none";
+                document.getElementById("logoutBtn").style.display = "none";
+
+                alert("Token removed.");
+            }
+        </script>
+    </body>
+</html>

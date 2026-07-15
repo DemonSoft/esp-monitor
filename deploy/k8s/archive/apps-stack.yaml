@@ -1,0 +1,185 @@
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: esp-server-deployment
+spec:
+  replicas: 1
+  selector:
+    matchLabels:
+      app: esp-server
+  template:
+    metadata:
+      labels:
+        app: esp-server
+    spec:
+      containers:
+      - name: esp-server
+        image: demonsoft/esp-server:latest
+        imagePullPolicy: IfNotPresent
+        ports:
+        - containerPort: 80
+        env:
+        - name: XTOKEN
+          value: "019eb656-cbab-7a0e-b1a8-8b6014923877"
+        - name: REST_PORT
+          value: "80"
+
+        # Настройки MQTT брокера внутри K8s
+        - name: MQTT_HOST
+          value: "mosquitto-service"
+        - name: MQTT_PORT
+          value: "1883"
+        - name: MQTT_PROTOCOL
+          value: "mqtt://"
+        - name: MQTT_USERNAME
+          value: ""
+        - name: MQTT_PASSWORD
+          value: ""
+        - name: MQTT_ROOT
+          value: "root"
+        - name: MQTT_CLIENT_ID
+          value: ""
+        - name: MQTT_KEEP_ALIVE
+          value: "60"
+        - name: MQTT_PING_TIMEOUT
+          value: "10"
+
+        # Настройки Kafka внутри K8s
+        - name: KAFKA_RUN
+          value: "true"
+        - name: KAFKA_HOST
+          value: "kafka-service"
+        - name: KAFKA_PORT
+          value: "9092" # Используем внутренний PLAINTEXT порт
+        - name: KAFKA_DEFAULT_TOPIC
+          value: "root"
+        - name: KAFKA_TIMEOUT
+          value: "10"
+        - name: KAFKA_ACKS
+          value: "all"
+---
+apiVersion: v1
+kind: Service
+metadata:
+  name: esp-server-service
+spec:
+  type: LoadBalancer
+  selector:
+    app: esp-server
+  ports:
+    - port: 80
+      targetPort: 80
+      nodePort: 31080
+---
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: kworker-deployment
+spec:
+  replicas: 1
+  selector:
+    matchLabels:
+      app: kworker
+  template:
+    metadata:
+      labels:
+        app: kworker
+    spec:
+      containers:
+      - name: kworker
+        image: demonsoft/kworker:latest # Возвращено имя образа kworker, тег latest
+        imagePullPolicy: IfNotPresent
+        env:
+        - name: KAFKA_HOST
+          value: "kafka-service"
+        - name: KAFKA_PORT
+          value: "9092"
+        - name: KAFKA_DEFAULT_TOPIC
+          value: "root"
+---
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: ai-worker-deployment
+spec:
+  replicas: 1
+  selector:
+    matchLabels:
+      app: ai-worker
+  template:
+    metadata:
+      labels:
+        app: ai-worker
+    spec:
+      containers:
+      - name: ai-worker
+        image: demonsoft/ai-worker:latest
+        imagePullPolicy: IfNotPresent
+        env:
+        - name: KAFKA_HOST
+          value: "kafka-service"
+        - name: KAFKA_PORT
+          value: "9092"
+        - name: KAFKA_DEFAULT_TOPIC
+          value: "anomalies"
+        - name: OPENROUTER_MODEL
+          value: "meta-llama/llama-3-8b-instruct:free"
+        - name: OPENROUTER_API_KEY
+          valueFrom:
+            secretKeyRef:
+              name: openrouter-secret
+              key: OPENROUTER_API_KEY
+---
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: hworker-deployment
+spec:
+  replicas: 1
+  selector:
+    matchLabels:
+      app: hworker
+  template:
+    metadata:
+      labels:
+        app: hworker
+    spec:
+      containers:
+      - name: hworker
+        image: demonsoft/hworker:latest
+        imagePullPolicy: IfNotPresent
+        env:
+        - name: KAFKA_HOST
+          value: "kafka-service"
+        - name: KAFKA_PORT
+          value: "9092"
+        - name: KAFKA_DEFAULT_TOPIC
+          value: "actions"
+        - name: WEBHOOK_URL
+          # Правильный адрес для перенаправления POST REST запросов на локальный n8n
+          value: "http://host.minikube.internal:8080/webhook"
+
+---
+apiVersion: batch/v1
+kind: Job
+metadata:
+  name: kafka-init-topics-job
+spec:
+  template:
+    spec:
+      containers:
+      - name: kafka-init-topics
+        image: apache/kafka:3.7.0
+        command: ["/bin/bash", "-c"]
+        args:
+        - |
+          echo "=== STARTING TOPIC CREATION ===" &&
+          /opt/kafka/bin/kafka-topics.sh --bootstrap-server kafka-service:29092 --create --if-not-exists --topic root --partitions 1 --replication-factor 1 &&
+          /opt/kafka/bin/kafka-topics.sh --bootstrap-server kafka-service:29092 --create --if-not-exists --topic actions --partitions 1 --replication-factor 1 &&
+          /opt/kafka/bin/kafka-topics.sh --bootstrap-server kafka-service:29092 --create --if-not-exists --topic logs --partitions 1 --replication-factor 1 &&
+          /opt/kafka/bin/kafka-topics.sh --bootstrap-server kafka-service:29092 --create --if-not-exists --topic pins --partitions 1 --replication-factor 1 &&
+          /opt/kafka/bin/kafka-topics.sh --bootstrap-server kafka-service:29092 --create --if-not-exists --topic anomalies --partitions 1 --replication-factor 1 &&
+          echo "=== CURRENT KAFKA TOPICS ===" &&
+          /opt/kafka/bin/kafka-topics.sh --bootstrap-server kafka-service:29092 --list
+      restartPolicy: OnFailure
+  backoffLimit: 4

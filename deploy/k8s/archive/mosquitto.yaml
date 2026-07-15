@@ -1,0 +1,66 @@
+apiVersion: v1
+kind: ConfigMap
+metadata:
+  name: mosquitto-config
+data:
+  mosquitto.conf: |
+    # Слушаем порт 1883 на всех интерфейсах (включая сеть K8s)
+    listener 1883 0.0.0.0
+    # Разрешаем анонимные подключения (без пароля)
+    allow_anonymous true
+    # Логирование для отладки
+    log_dest stdout
+    log_type all
+---
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: mosquitto-deployment
+  labels:
+    app: mosquitto
+spec:
+  replicas: 1
+  selector:
+    matchLabels:
+      app: mosquitto
+  template:
+    metadata:
+      labels:
+        app: mosquitto
+    spec:
+      securityContext:
+        fsGroup: 1883
+      containers:
+      - name: mosquitto
+        image: eclipse-mosquitto:2.0
+        # Команды и аргументы больше не трогаем, пусть стартует по умолчанию
+        ports:
+        - containerPort: 1883
+        volumeMounts:
+        - name: mosquitto-data
+          mountPath: /mosquitto/data
+        # Монтируем наш созданный конфиг прямо в дефолтную папку mosquitto
+        - name: config-volume
+          mountPath: /mosquitto/config/mosquitto.conf
+          subPath: mosquitto.conf
+      volumes:
+      - name: mosquitto-data
+        persistentVolumeClaim:
+          claimName: mosquitto-pvc
+      - name: config-volume
+        configMap:
+          name: mosquitto-config
+---
+apiVersion: v1
+kind: Service
+metadata:
+  name: mosquitto-service
+spec:
+  type: LoadBalancer
+  selector:
+    app: mosquitto
+  ports:
+    - protocol: TCP
+      port: 1883
+      targetPort: 1883
+      nodePort: 31883

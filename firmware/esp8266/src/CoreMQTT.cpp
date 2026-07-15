@@ -1,0 +1,366 @@
+#include "CoreCommon.hpp"
+#include "CoreMQTT.hpp"
+#include "CoreWiFi.hpp"
+#include "main.hpp"
+#include "CoreBlink.hpp"
+#include "CoreConfig.hpp"
+#include "CoreTime.hpp"
+#include <ArduinoJson.h>
+
+// ESP8266 doesn't have FreeRTOS, using simple timer management with millis()
+AsyncMqttClient mqttClient;
+int mqttPort;
+
+bool checkPinStateChanged();
+void publishStateMessage();
+void publishState();
+
+// Simple timer management for ESP8266
+unsigned long mqttReconnectTime = 0;
+bool mqttTimerActive = false;
+const int mqttTimeOutMS = 5000; // Maximum time to wait for MQTT connection before retrying
+
+unsigned long previousMillis = 0;  // хранится время последней публикации
+const long interval = 1000;        // максимальная частота публикации состояния
+                                   // данных от датчика
+
+
+bool hasPreviousPinState = false;
+int previousPinStates[9] = {-1, -1, -1, -1, -1, -1, -1, -1, -1};
+ 
+const int ledPin = LED_BUILTIN;    // GPIO-контакт, к которому
+                                   // подключен светодиод
+int ledState = LOW;                // текущее состояние
+                                   // выходного контакта
+
+unsigned long ledPingInterval = 50;
+unsigned long ledPingPrev = 0;
+
+void mqttClientSetup() {
+
+  mqttPort = config.mqtt.port;
+  mqttClient.setServer(config.mqtt.host.c_str(), mqttPort);
+
+  // User credentials for MQTT authentication
+  if (config.mqtt.user.length() && config.mqtt.pass.length()) {
+    mqttClient.setCredentials(config.mqtt.user.c_str(), config.mqtt.pass.c_str());
+  }
+
+  // Set the client ID for MQTT connection
+  mqttClient.setClientId(espState.name.c_str());
+
+  // Initialize timers for ESP8266
+  mqttReconnectTime = 0;
+  mqttTimerActive = false;
+
+  // Setup MQTT callbacks
+  mqttClient.onConnect(onMqttConnect);
+  mqttClient.onDisconnect(onMqttDisconnect);
+  mqttClient.onSubscribe(onMqttSubscribe);
+  mqttClient.onUnsubscribe(onMqttUnsubscribe);
+  mqttClient.onMessage(onMqttMessage);
+  mqttClient.onPublish(onMqttPublish);
+
+  // if (WiFi.isConnected()) {
+  //   Serial.println("Connecting to MQTT...");
+  //   connectToMqtt();
+  // }
+
+  Serial.println("MQTT HOST: " + config.mqtt.host);
+  Serial.println("MQTT PORT: " + String(config.mqtt.port));
+  Serial.println("MQTT USER: " + config.mqtt.user);
+  Serial.println("MQTT PASS: " + config.mqtt.pass);
+  Serial.println("MQTT CLIENT ID: " + espState.name);
+  Serial.println("MQTT CLIENT ID: " + String(mqttClient.getClientId()));
+
+  Serial.println("MQTT ACTION TOPIC: " + mqttActionTopic());
+  Serial.println("MQTT STATE TOPIC: " + mqttStateTopic());
+  Serial.println("MQTT SUBSCRIBE TOPIC: " + config.mqtt.root + "/" + config.ssdp.name + "/#");
+  Serial.println("MQTT BASE TOPIC: " + mqttBaseTopic());
+  Serial.println("MQTT ROOT: " + config.mqtt.root);
+
+}
+
+void loopMqtt() {
+  waitingMqttDisconnect();
+  publishStateMessage();
+  turnOffPingLedIfNeed();
+}
+
+void waitingMqttDisconnect() {
+     // Check MQTT reconnection timer
+   if (mqttTimerActive && (millis() - mqttReconnectTime >= mqttTimeOutMS)) {
+     connectToMqtt();
+     mqttTimerActive = false;
+   }
+}
+
+void connectToMqtt() { 
+  Serial.println("Connecting to MQTT...");
+  blink("..."); // fast blinking while connecting to MQTT  
+  mqttClient.connect();
+}
+
+void resetMQTTTimers() {
+  // For ESP8266: stop MQTT reconnection and start WiFi reconnection timer
+  mqttTimerActive = false;
+}
+
+bool checkTimerInterval() {
+  unsigned long currentMillis = millis();
+
+  if (previousMillis > currentMillis)  // Коррекция после переполнения счетчика через 50 суток.
+    previousMillis = interval - currentMillis;
+  
+  
+  if (currentMillis - previousMillis < interval) return false;
+   
+    previousMillis = currentMillis;
+
+   return true;
+}
+
+String createTopic(const String &name) {
+  return mqttBaseTopic() + "/" + name;
+}
+
+bool checkPinStateChanged() {
+  int currentPins[9];
+  currentPins[0] = digitalRead(5);  // D1
+  currentPins[1] = digitalRead(4);  // D2
+  currentPins[2] = digitalRead(0);  // D3
+  currentPins[3] = digitalRead(2);  // D4
+  currentPins[4] = digitalRead(14); // D5
+  currentPins[5] = digitalRead(12); // D6
+  currentPins[6] = digitalRead(13); // D7
+  currentPins[7] = digitalRead(15); // D8
+  currentPins[8] = analogRead(A0);
+
+  bool changed = false;
+  for (int i = 0; i < 9; i++) {
+    if (!hasPreviousPinState || currentPins[i] != previousPinStates[i]) {
+      changed = true;
+      break;
+    }
+  }
+
+  if (changed) {
+    for (int i = 0; i < 9; i++) {
+      previousPinStates[i] = currentPins[i];
+    }
+    hasPreviousPinState = true;
+  }
+
+  return changed;
+}
+
+void publishStateMessage() {
+    if (!espState.mqtt_connected) return;
+    if (!checkTimerInterval()) return;
+    if (!checkPinStateChanged()) return;
+    publishState();
+}
+
+void publishState() {
+    JsonDocument doc;
+    doc["SSDP"] = config.ssdp.name;
+    doc["MDNS"] = config.mdns;
+    doc["Started"] = started;
+    doc["Updated"] = getUnixTime();
+    JsonObject pins = doc["Pins"].to<JsonObject>();
+    pins["D1"] = digitalRead(5);
+    pins["D2"] = digitalRead(4);
+    pins["D3"] = digitalRead(0);
+    pins["D4"] = digitalRead(2);
+    pins["D5"] = digitalRead(14);
+    pins["D6"] = digitalRead(12);
+    pins["D7"] = digitalRead(13);
+    pins["D8"] = digitalRead(15);
+    pins["A0"] = analogRead(A0);
+
+    String payload;
+    serializeJson(doc, payload);
+    String topic = mqttStateTopic();
+    mqttClient.publish(topic.c_str(), 1, false, payload.c_str());
+}
+
+void handleMqttAction(const String &payload) {
+    JsonDocument doc;
+    DeserializationError err = deserializeJson(doc, payload);
+    if (err) {
+      Serial.print("Invalid MQTT action JSON: ");
+      Serial.println(err.c_str());
+      return;
+    }
+
+    if (!doc["config"].is<JsonObject>()) {
+      return;
+    }
+
+    String oldActionTopic = mqttActionTopic(); // Store the old action topic before merging the new config
+    JsonObject configObject = doc["config"].as<JsonObject>();
+    mergeConfigObject(configObject);
+    if (!saveConfig()) {
+      Serial.println("Failed to save config from MQTT action");
+      return;
+    }
+    
+    removeTopic(oldActionTopic); // Clean up the action topic after processing the action
+
+    Serial.println("Config updated from MQTT action. Rebooting...");
+    delay(1000); // We need to wait a bit before restarting to ensure the message is sent
+    ESP.restart();
+}
+
+// MQTT callback functions
+// Thre are subscribed to MQTT events and handle them accordingly. 
+// These functions are called when the corresponding MQTT event occurs.
+void onMqttConnect(bool sessionPresent) {
+  Serial.println("Connected to MQTT.");
+  Serial.print("Session present: ");
+  Serial.println(sessionPresent);
+  String actionTopic = mqttActionTopic();
+  String subscribeTopic = config.mqtt.root + "/" + config.ssdp.name + "/#";
+  uint16_t packetIdSub = mqttClient.subscribe(subscribeTopic.c_str(), 0);  // QoS 0 for subscription
+  Serial.print("Subscribing at QoS 0, packetId: ");
+  Serial.println(packetIdSub);
+  espState.mqtt_connected = true;
+  publishStateMessage();
+}
+
+
+void mqttDisconnect() {
+  
+  espState.mqtt_connected  = false;
+  Serial.println("");
+  Serial.println("Disconnected from MQTT.");
+  
+  previousMillis = 0;
+  
+  // Start MQTT reconnection timer for ESP8266
+  if (WiFi.isConnected()) {
+    mqttTimerActive = true;
+    mqttReconnectTime = millis();
+  }
+}
+ 
+void onMqttSubscribe(uint16_t packetId, uint8_t qos) {
+  Serial.println("Subscribe acknowledged.");
+             //  "Подписка подтверждена."
+  Serial.print("  packetId: ");  //  "  ID пакета: "
+  Serial.println(packetId);
+  Serial.print("  qos: ");  //  "  Уровень качества обслуживания: "
+  Serial.println(qos);
+}
+ 
+void onMqttUnsubscribe(uint16_t packetId) {
+  Serial.println("Unsubscribe acknowledged.");
+            //  "Отписка подтверждена."
+  Serial.print("  packetId: ");
+  Serial.println(packetId);
+}
+ 
+void onMqttPublish(uint16_t packetId) {
+     ledState = HIGH;
+     digitalWrite(ledPin, ledState);
+     ledPingPrev = millis();
+}
+
+void turnOffPingLedIfNeed() {
+  if (!espState.mqtt_connected) return;
+
+  // TODO: Implement a more robust LED ping mechanism if needed
+  // unsigned long current = millis();
+  // if (ledState == HIGH && current - ledPingPrev > ledPingInterval) {
+  //   ledState = LOW;
+  //   ledPingPrev = current;
+  //   digitalWrite(ledPin, ledState);
+  // }
+}
+ 
+// этой функцией управляется то, что происходит
+// при получении того или иного сообщения в топике «esp32/led»;
+// (если хотите, можете ее отредактировать):
+void mqttMessage(char* topic, char* payload, size_t len, size_t index, size_t total, int qos, int dup, int retain) {
+  String messageTemp;
+  for (size_t i = 0; i < len; i++) {
+    messageTemp += (char)payload[i];
+  }
+
+  if (messageTemp == "{}") {
+    Serial.printf("-  Topic %s was removed.\n", topic);
+    return;
+  }
+
+  String topicStr = String(topic);
+  String actionTopic = mqttActionTopic();
+
+  if (topicStr == actionTopic) {
+    handleMqttAction(messageTemp);
+  }
+
+  Serial.println("");
+  Serial.println("Publish received.");
+  Serial.print("  topic: ");
+  Serial.println(topicStr);
+  Serial.print("  message: ");
+  Serial.println(messageTemp);
+  Serial.print("  qos: ");
+  Serial.println(qos);
+  Serial.print("  dup: ");
+  Serial.println(dup);
+  Serial.print("  retain: ");
+  Serial.println(retain);
+  Serial.print("  len: ");
+  Serial.println(len);
+  Serial.print("  index: ");
+  Serial.println(index);
+  Serial.print("  total: ");
+  Serial.println(total);
+  blink(".."); // short blink to indicate message received
+}
+
+void onMqttDisconnect(AsyncMqttClientDisconnectReason reason) {
+
+  switch ((int)reason) {
+    case 0: // TCP_DISCONNECTED
+      Serial.println("Disconnected from MQTT: TCP_DISCONNECTED");
+      break;
+    case 1: // MQTT_UNACCEPTABLE_PROTOCOL_VERSION
+      Serial.println("Disconnected from MQTT: MQTT_UNACCEPTABLE_PROTOCOL_VERSION");
+      break;
+    case 2: // MQTT_IDENTIFIER_REJECTED          
+      Serial.println("Disconnected from MQTT: MQTT_IDENTIFIER_REJECTED");
+      break;
+    case 3: // MQTT_SERVER_UNAVAILABLE
+      Serial.println("Disconnected from MQTT: MQTT_SERVER_UNAVAILABLE");
+      break;
+    case 4: // MQTT_MALFORMED_CREDENTIALS
+      Serial.println("Disconnected from MQTT: MQTT_MALFORMED_CREDENTIALS");
+      break;
+    case 5: // MQTT_NOT_AUTHORIZED
+      Serial.println("Disconnected from MQTT: MQTT_NOT_AUTHORIZED");
+      break;
+    case 6: // ESP8266_NOT_ENOUGH_SPACE
+      Serial.println("Disconnected from MQTT: ESP8266_NOT_ENOUGH_SPACE");
+      break;
+    case 7: // TLS_BAD_FINGERPRINT
+      Serial.println("Disconnected from MQTT: TLS_BAD_FINGERPRINT");
+      break;  
+
+    default:
+      Serial.println("Disconnected from MQTT: UNKNOWN");
+      break;
+  }
+
+  mqttDisconnect();
+}
+
+void onMqttMessage(char* topic, char* payload, 
+     struct AsyncMqttClientMessageProperties properties, size_t len, size_t index, size_t total) {
+  mqttMessage(topic, payload, len, index, total, properties.qos, properties.dup, properties.retain);
+}
+
+void removeTopic(String topic) {
+    mqttClient.publish(topic.c_str(), 1, false, "{}");
+}

@@ -1,0 +1,81 @@
+# Esp Monitor Community License (EMCL)
+
+**Version 1.0**
+Copyright (c) 2026 Dmitriy Soloshenko
+
+---
+
+## 1. Definitions
+
+**Software** refers to the Esp Monitor project, including its source code, documentation, binaries, and any accompanying materials.
+
+**Author** refers to Dmitriy Soloshenko.
+
+---
+
+## 2. Permission
+
+Permission is hereby granted, free of charge, to any person obtaining a copy of this Software to:
+
+* use the Software for personal, educational, research, and internal business purposes;
+* study how the Software works;
+* modify the Software;
+* create derivative works;
+* compile and run modified versions;
+* redistribute the original or modified Software,
+
+provided that all conditions of this license are met.
+
+---
+
+## 3. Commercial Use
+
+Commercial use of this Software, in whole or in part, is **not permitted** without prior written permission from the Author.
+
+Commercial use includes, but is not limited to:
+
+* selling the Software;
+* selling products or services that substantially incorporate the Software;
+* offering the Software as a paid hosted service;
+* including the Software in commercial products intended for sale;
+* distributing modified versions for commercial purposes.
+
+A separate commercial license may be obtained directly from the Author.
+
+---
+
+## 4. Attribution
+
+Any redistribution of the Software, whether modified or unmodified, must retain:
+
+* this license;
+* all copyright notices;
+* any existing author attribution.
+
+Removing or altering copyright notices is prohibited.
+
+---
+
+## 5. Modifications
+
+Modified versions must clearly indicate that changes have been made.
+
+The original Author shall not be represented as the author of modified versions.
+
+---
+
+## 6. No Warranty
+
+THE SOFTWARE IS PROVIDED "AS IS", WITHOUT WARRANTY OF ANY KIND, EXPRESS OR IMPLIED, INCLUDING BUT NOT LIMITED TO THE WARRANTIES OF MERCHANTABILITY, FITNESS FOR A PARTICULAR PURPOSE, AND NON-INFRINGEMENT.
+
+---
+
+## 7. Limitation of Liability
+
+IN NO EVENT SHALL THE AUTHOR BE LIABLE FOR ANY CLAIM, DAMAGES, OR OTHER LIABILITY, WHETHER IN AN ACTION OF CONTRACT, TORT, OR OTHERWISE, ARISING FROM, OUT OF, OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN THE SOFTWARE.
+
+---
+
+## 8. Acceptance
+
+By using, copying, modifying, or distributing this Software, you agree to the terms of this license.

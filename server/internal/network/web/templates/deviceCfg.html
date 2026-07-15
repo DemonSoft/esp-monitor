@@ -1,0 +1,305 @@
+<!doctype html>
+<html lang="en">
+    <head>
+        <meta charset="UTF-8" />
+        <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+        <title>Device configuration</title>
+        <script>
+            (function () {
+                const urlParams = new URLSearchParams(window.location.search);
+                const tokenInUrl = urlParams.get("token");
+
+                if (!tokenInUrl) {
+                    const savedToken = localStorage.getItem("user_token");
+
+                    if (savedToken) {
+                        urlParams.set("token", savedToken);
+                        window.location.search = urlParams.toString();
+                    }
+                }
+            })();
+        </script>
+        <style>
+            body {
+                font-family: "Segoe UI", Tahoma, Geneva, Verdana, sans-serif;
+                background-color: #f4f7f6;
+                color: #333;
+                padding: 20px;
+                margin: 0;
+            }
+            .container {
+                max-width: 650px;
+                margin: 0 auto;
+                background: #fff;
+                padding: 30px;
+                border-radius: 8px;
+                box-shadow: 0 4px 15px rgba(0, 0, 0, 0.05);
+            }
+            h2 {
+                text-align: center;
+                color: #2c3e50;
+                margin-bottom: 25px;
+            }
+            fieldset {
+                border: 1px solid #ddd;
+                border-radius: 6px;
+                padding: 20px;
+                margin-bottom: 20px;
+                background-color: #fcfcfc;
+            }
+            legend {
+                font-weight: bold;
+                color: #2980b9;
+                padding: 0 10px;
+            }
+            .form-group {
+                margin-bottom: 15px;
+            }
+            .form-group:last-child {
+                margin-bottom: 0;
+            }
+            label {
+                display: block;
+                margin-bottom: 5px;
+                font-size: 0.9em;
+                color: #555;
+                font-weight: 600;
+            }
+            input {
+                width: 100%;
+                padding: 10px;
+                border: 1px solid #ccc;
+                border-radius: 4px;
+                box-sizing: border-box;
+                font-size: 14px;
+            }
+            input:focus {
+                border-color: #2980b9;
+                outline: none;
+            }
+            button {
+                width: 100%;
+                padding: 12px;
+                background-color: #27ae60;
+                color: white;
+                border: none;
+                border-radius: 4px;
+                font-size: 16px;
+                font-weight: bold;
+                cursor: pointer;
+                transition: background 0.2s;
+            }
+            button:hover {
+                background-color: #219653;
+            }
+            #response {
+                margin-top: 20px;
+                padding: 15px;
+                border-radius: 4px;
+                display: none;
+                white-space: pre-wrap;
+                font-family: monospace;
+            }
+            .success {
+                background-color: #d4edda;
+                color: #155724;
+                border: 1px solid #c3e6cb;
+            }
+            .error {
+                background-color: #f8d7da;
+                color: #721c24;
+                border: 1px solid #f5c6cb;
+            }
+        </style>
+    </head>
+    <body>
+        <div class="container">
+            <h2>Configuration</h2>
+            <form id="configForm">
+                <fieldset>
+                    <legend>Wi-Fi Settings</legend>
+                    <div class="form-group">
+                        <label for="wifi_ssid">SSID (Network name):</label>
+                        <input type="text" id="wifi_ssid" />
+                    </div>
+                    <div class="form-group">
+                        <label for="wifi_pass">Password:</label>
+                        <input type="password" id="wifi_pass" />
+                    </div>
+                </fieldset>
+
+                <fieldset>
+                    <legend>SSDP Settings</legend>
+                    <div class="form-group">
+                        <label for="ssdp_name">SSDP Name:</label>
+                        <input type="text" id="ssdp_name" />
+                    </div>
+                    <div class="form-group">
+                        <label for="ssdp_serial">Serial number:</label>
+                        <input type="text" id="ssdp_serial" />
+                    </div>
+                    <div class="form-group">
+                        <label for="ssdp_port">HTTP Port:</label>
+                        <input
+                            type="text"
+                            id="ssdp_port"
+                            placeholder="80 by default"
+                        />
+                    </div>
+
+                    <fieldset>
+                        <legend>Model</legend>
+                        <div class="form-group">
+                            <label for="model_name">Model name:</label>
+                            <input type="text" id="model_name" />
+                        </div>
+                        <div class="form-group">
+                            <label for="model_number">Model number:</label>
+                            <input type="text" id="model_number" />
+                        </div>
+                        <div class="form-group">
+                            <label for="model_url">Model URL:</label>
+                            <input type="text" id="model_url" value="/" />
+                        </div>
+                    </fieldset>
+
+                    <fieldset>
+                        <legend>Manufacturer</legend>
+                        <div class="form-group">
+                            <label for="man_name">Manufacturer name:</label>
+                            <input type="text" id="man_name" />
+                        </div>
+                        <div class="form-group">
+                            <label for="man_url">Manufacturer URL:</label>
+                            <input type="text" id="man_url" value="/" />
+                        </div>
+                    </fieldset>
+                </fieldset>
+
+                <fieldset>
+                    <legend>mDNS Settings</legend>
+                    <div class="form-group">
+                        <label for="mdns">mDNS host:</label>
+                        <input type="text" id="mdns" placeholder="esp.local" />
+                    </div>
+                </fieldset>
+
+                <fieldset>
+                    <legend>MQTT Settings</legend>
+                    <div class="form-group">
+                        <label for="mqtt_host">Host:</label>
+                        <input type="text" id="mqtt_host" />
+                    </div>
+                    <div class="form-group">
+                        <label for="mqtt_port">Port:</label>
+                        <input type="text" id="mqtt_port" placeholder="1883" />
+                    </div>
+                    <div class="form-group">
+                        <label for="mqtt_user">User:</label>
+                        <input type="text" id="mqtt_user" />
+                    </div>
+                    <div class="form-group">
+                        <label for="mqtt_pass">Password:</label>
+                        <input type="password" id="mqtt_pass" />
+                    </div>
+                    <div class="form-group">
+                        <label for="mqtt_root">Root topic:</label>
+                        <input
+                            type="text"
+                            id="mqtt_root"
+                            placeholder="home/device"
+                        />
+                    </div>
+                </fieldset>
+
+                <button type="submit">Send configuration</button>
+            </form>
+
+            <div id="response"></div>
+        </div>
+
+        <script>
+            document
+                .getElementById("configForm")
+                .addEventListener("submit", function (e) {
+                    e.preventDefault();
+
+                    const urlParams = new URLSearchParams(
+                        window.location.search,
+                    );
+                    const ssdpParam = urlParams.get("ssdp") || "";
+                    const tokenParam = urlParams.get("token") || "";
+
+                    const payload = {
+                        wifi: {
+                            ssid: document.getElementById("wifi_ssid").value,
+                            pass: document.getElementById("wifi_pass").value,
+                        },
+                        ssdp: {
+                            name: document.getElementById("ssdp_name").value,
+                            url: "/",
+                            serial: document.getElementById("ssdp_serial")
+                                .value,
+                            model: {
+                                name: document.getElementById("model_name")
+                                    .value,
+                                number: document.getElementById("model_number")
+                                    .value,
+                                url: document.getElementById("model_url").value,
+                            },
+                            manufacturer: {
+                                name: document.getElementById("man_name").value,
+                                url: document.getElementById("man_url").value,
+                            },
+                            device_type: "upnp:rootdevice",
+                            schema_url: "description.xml",
+                            http_port:
+                                document.getElementById("ssdp_port").value,
+                        },
+                        mdns: document.getElementById("mdns").value,
+                        mqtt: {
+                            host: document.getElementById("mqtt_host").value,
+                            port: document.getElementById("mqtt_port").value,
+                            user: document.getElementById("mqtt_user").value,
+                            pass: document.getElementById("mqtt_pass").value,
+                            root: document.getElementById("mqtt_root").value,
+                        },
+                    };
+
+                    const responseDiv = document.getElementById("response");
+                    responseDiv.style.display = "none";
+
+                    fetch("/api/v1/devices/cfg", {
+                        method: "POST",
+                        headers: {
+                            "Content-Type": "application/json",
+                            SSDP: ssdpParam,
+                            xToken: tokenParam,
+                        },
+                        body: JSON.stringify(payload),
+                    })
+                        .then((response) => {
+                            if (response.ok) {
+                                return response.text().then((text) => {
+                                    responseDiv.className = "success";
+                                    responseDiv.innerText =
+                                        "Sent successful!\nServer response: " +
+                                        text;
+                                    responseDiv.style.display = "block";
+                                });
+                            } else {
+                                throw new Error(
+                                    "Server error: " + response.status,
+                                );
+                            }
+                        })
+                        .catch((error) => {
+                            responseDiv.className = "error";
+                            responseDiv.innerText =
+                                "Sending error:\n" + error.message;
+                            responseDiv.style.display = "block";
+                        });
+                });
+        </script>
+    </body>
+</html>

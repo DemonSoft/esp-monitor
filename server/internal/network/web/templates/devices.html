@@ -1,0 +1,176 @@
+<!doctype html>
+<html lang="en">
+    <head>
+        <meta charset="UTF-8" />
+        <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+        <title>Devices</title>
+        <script>
+            (function () {
+                const urlParams = new URLSearchParams(window.location.search);
+                const tokenInUrl = urlParams.get("token");
+
+                if (!tokenInUrl) {
+                    const savedToken = localStorage.getItem("user_token");
+
+                    if (savedToken) {
+                        urlParams.set("token", savedToken);
+                        window.location.search = urlParams.toString();
+                    }
+                }
+            })();
+        </script>
+        <style>
+            :root {
+                --bg-color: #f8fafc;
+                --card-bg: #ffffff;
+                --text-main: #1e293b;
+                --text-muted: #64748b;
+                --border-color: #e2e8f0;
+                --primary: #3b82f6;
+                --primary-light: #eff6ff;
+            }
+
+            body {
+                font-family:
+                    -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto,
+                    Helvetica, Arial, sans-serif;
+                background-color: var(--bg-color);
+                color: var(--text-main);
+                margin: 0;
+                padding: 2rem;
+                display: flex;
+                flex-direction: column;
+                align-items: center;
+            }
+
+            .container {
+                width: 100%;
+                max-width: 1200px;
+            }
+
+            h1 {
+                font-size: 1.75rem;
+                font-weight: 600;
+                margin-bottom: 1.5rem;
+                color: var(--text-main);
+                display: flex;
+                align-items: center;
+                gap: 0.5rem;
+            }
+
+            h1::before {
+                content: "";
+                display: inline-block;
+                width: 4px;
+                height: 1.5rem;
+                background-color: var(--primary);
+                border-radius: 2px;
+            }
+
+            .table-wrapper {
+                background-color: var(--card-bg);
+                border: 1px solid var(--border-color);
+                border-radius: 8px;
+                box-shadow: 0 1px 3px 0 rgba(0, 0, 0, 0.05);
+                overflow-x: auto;
+                width: 100%;
+            }
+
+            table {
+                width: 100%;
+                border-collapse: collapse;
+                text-align: left;
+                font-size: 0.875rem;
+            }
+
+            th {
+                background-color: #f1f5f9;
+                color: var(--text-muted);
+                font-weight: 600;
+                padding: 0.75rem 1rem;
+                text-transform: uppercase;
+                font-size: 0.75rem;
+                letter-spacing: 0.05em;
+                border-bottom: 1px solid var(--border-color);
+                white-space: nowrap;
+            }
+
+            td {
+                padding: 1rem;
+                border-bottom: 1px solid var(--border-color);
+                color: var(--text-main);
+                white-space: nowrap;
+            }
+
+            tr:last-child td {
+                border-bottom: none;
+            }
+
+            tr:hover td {
+                background-color: var(--primary-light);
+            }
+
+            .note {
+                margin-top: 1rem;
+                font-size: 0.75rem;
+                color: var(--text-muted);
+            }
+            /* Active styles */
+            .badge {
+                display: inline-block;
+                padding: 0.25rem 0.5rem;
+                font-size: 0.75rem;
+                font-weight: 600;
+                border-radius: 4px;
+                text-align: center;
+                min-width: 50px;
+            }
+            .badge-true {
+                background-color: #dcfce7;
+                color: #15803d;
+            }
+            .badge-false {
+                background-color: #fee2e2;
+                color: #b91c1c;
+            }
+        </style>
+    </head>
+    <body>
+        <div class="container">
+            <h1>Devices</h1>
+
+            <div class="table-wrapper">
+                <table>
+                    <thead>
+                        <tr>
+                            <th>SSDP</th>
+                            <th>Active</th>
+                            <th>Uptime</th>
+                        </tr>
+                    </thead>
+                    <tbody>
+                        {{ range .devices }}
+                        <tr>
+                            <td>{{ .SSDP }}</td>
+                            <td>{{ .Active }}</td>
+                            <td>
+                                {{ if .TimeOut }}
+                                <span class="badge badge-false"> Timeout </span>
+                                {{ else }}
+                                <span class="badge badge-true">
+                                    {{ .UptimeHuman }}
+                                </span>
+                                {{ end }}
+                            </td>
+                        </tr>
+                        {{ end }}
+                    </tbody>
+                </table>
+            </div>
+
+            <p class="note">
+                *There is <strong>GMT (UTC±0)</strong> side datetime.
+            </p>
+        </div>
+    </body>
+</html>

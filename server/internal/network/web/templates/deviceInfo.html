@@ -1,0 +1,447 @@
+<!doctype html>
+<html lang="en">
+    <head>
+        <meta charset="UTF-8" />
+        <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+        <title>Device Info</title>
+        <script>
+            (function () {
+                const urlParams = new URLSearchParams(window.location.search);
+                const tokenInUrl = urlParams.get("token");
+
+                if (!tokenInUrl) {
+                    const savedToken = localStorage.getItem("user_token");
+
+                    if (savedToken) {
+                        urlParams.set("token", savedToken);
+                        window.location.search = urlParams.toString();
+                    }
+                }
+            })();
+        </script>
+        <style>
+            :root {
+                --bg-color: #f8f9fa;
+                --card-bg: #ffffff;
+                --text-main: #212529;
+                --text-muted: #6c757d;
+                --border-color: #dee2e6;
+                --primary: #0d6efd;
+                --success: #198754;
+                --danger: #dc3545;
+                --danger-hover: #bb2d3b;
+            }
+
+            body {
+                font-family:
+                    -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto,
+                    Helvetica, Arial, sans-serif;
+                background-color: var(--bg-color);
+                color: var(--text-main);
+                line-height: 1.5;
+                padding: 20px;
+                max-width: 800px;
+                margin: 0 auto;
+            }
+
+            h1 {
+                font-size: 1.75rem;
+                margin-bottom: 1.5rem;
+                color: #343a40;
+                border-bottom: 2px solid var(--border-color);
+                padding-bottom: 0.5rem;
+            }
+
+            .device-card {
+                background: var(--card-bg);
+                border-radius: 8px;
+                box-shadow: 0 4px 6px rgba(0, 0, 0, 0.05);
+                padding: 20px;
+                margin-bottom: 25px;
+                border: 1px solid var(--border-color);
+            }
+
+            .info-table {
+                width: 100%;
+                border-collapse: collapse;
+                margin-bottom: 1.5rem;
+            }
+
+            .info-table th,
+            .info-table td {
+                padding: 10px 12px;
+                text-align: left;
+                border-bottom: 1px solid var(--border-color);
+            }
+
+            .info-table th {
+                font-weight: 600;
+                color: var(--text-muted);
+                width: 30%;
+            }
+
+            .info-table tr:hover {
+                background-color: rgba(0, 0, 0, 0.01);
+            }
+
+            /* Activity statuses */
+            .status-badge {
+                display: inline-block;
+                padding: 0.25em 0.6em;
+                font-size: 0.85em;
+                font-weight: 700;
+                border-radius: 4px;
+                text-transform: uppercase;
+            }
+            .status-true {
+                background-color: #d1e7dd;
+                color: var(--success);
+            }
+            .status-false {
+                background-color: #f8d7da;
+                color: var(--danger);
+            }
+
+            /* Json block */
+            .action-section {
+                margin-top: 20px;
+            }
+
+            .action-title {
+                font-size: 1.1rem;
+                font-weight: 600;
+                margin-bottom: 10px;
+                color: var(--text-main);
+            }
+
+            .json-container {
+                background-color: #272822;
+                color: #f8f8f2;
+                padding: 15px;
+                border-radius: 6px;
+                overflow-x: auto;
+                font-family:
+                    "SFMono-Regular", Consolas, "Liberation Mono", Menlo,
+                    monospace;
+                font-size: 0.9rem;
+                white-space: pre-wrap;
+                word-break: break-all;
+                max-height: 300px;
+                box-shadow: inset 0 2px 4px rgba(0, 0, 0, 0.1);
+            }
+
+            .json-container .j-key {
+                color: #f92672;
+                font-weight: bold;
+            }
+
+            .json-container .j-string {
+                color: #e6db74;
+            }
+
+            .json-container .j-value {
+                color: #ae81ff;
+            }
+
+            .footer-note {
+                font-size: 0.85rem;
+                color: var(--text-muted);
+                margin-top: 15px;
+                font-style: italic;
+            }
+
+            .btn-config,
+            .btn-delete {
+                display: inline-block;
+                text-decoration: none;
+                padding: 8px 16px;
+                border-radius: 4px;
+                font-weight: 600;
+                font-size: 0.9rem;
+                border: none;
+                cursor: pointer;
+                transition:
+                    background-color 0.2s,
+                    opacity 0.2s;
+                margin-top: 15px;
+            }
+
+            .btn-config {
+                background-color: var(--primary);
+                color: white;
+                margin-top: 15px;
+            }
+            .btn-config:hover {
+                background-color: #0b5ed7;
+            }
+
+            .btn-delete {
+                background-color: var(--danger);
+                color: white;
+                margin-top: 0;
+                margin-left: 15px;
+            }
+            .btn-delete:hover {
+                background-color: var(--danger-hover);
+            }
+
+            .card-footer {
+                display: flex;
+                justify-content: space-between; /* Изменено, чтобы разнести элементы по углам */
+                align-items: center;
+                border-top: 1px solid var(--border-color);
+                margin-top: 15px;
+                padding-top: 10px;
+            }
+
+            .delete-zone {
+                display: flex;
+                align-items: center;
+            }
+
+            /* Стилизация тумблера (Toggle Switch) */
+            .switch-container {
+                display: flex;
+                align-items: center;
+                font-size: 0.85rem;
+                color: var(--text-muted);
+                cursor: pointer;
+                user-select: none;
+            }
+
+            .switch {
+                position: relative;
+                display: inline-block;
+                width: 40px;
+                height: 22px;
+                margin-right: 8px;
+            }
+
+            .switch input {
+                opacity: 0;
+                width: 0;
+                height: 0;
+            }
+
+            .slider {
+                position: absolute;
+                cursor: pointer;
+                top: 0;
+                left: 0;
+                right: 0;
+                bottom: 0;
+                background-color: #ccc;
+                transition: 0.3s;
+                border-radius: 22px;
+            }
+
+            .slider:before {
+                position: absolute;
+                content: "";
+                height: 16px;
+                width: 16px;
+                left: 3px;
+                bottom: 3px;
+                background-color: white;
+                transition: 0.3s;
+                border-radius: 50%;
+            }
+
+            input:checked + .slider {
+                background-color: var(--danger);
+            }
+
+            input:checked + .slider:before {
+                transform: translateX(18px);
+            }
+        </style>
+    </head>
+    <body>
+        <h1>Device Info</h1>
+
+        {{ range . }}
+        <div class="device-card">
+            <table class="info-table">
+                <tr>
+                    <th>SSDP:</th>
+                    <td>{{ .SSDP }}</td>
+                </tr>
+                <tr>
+                    <th>MDNS:</th>
+                    <td>{{ .MDNS }}</td>
+                </tr>
+                <tr>
+                    <th>Active:</th>
+                    <td>
+                        <span class="status-badge status-{{ .Active }}"
+                            >{{ .Active }}</span
+                        >
+                    </td>
+                </tr>
+                <tr>
+                    <th>Activated:</th>
+                    <td>
+                        {{ .ActivatedHuman }}
+                        <small style="color: var(--text-muted)"
+                            >({{ .Activated }})</small
+                        >
+                    </td>
+                </tr>
+                <tr>
+                    <th>Started:</th>
+                    <td>
+                        {{ .StartedHuman }}
+                        <small style="color: var(--text-muted)"
+                            >({{ .Started }})</small
+                        >
+                    </td>
+                </tr>
+                <tr>
+                    <th>Updated:</th>
+                    <td>
+                        {{ .UpdatedHuman }}
+                        <small style="color: var(--text-muted)"
+                            >({{ .Updated }})</small
+                        >
+                    </td>
+                </tr>
+                <tr>
+                    <th>Uptime:</th>
+                    <td>
+                        <strong>
+                            {{ if .TimeOut }} Timeout {{ else }} {{ .UptimeHuman
+                            }} {{ end }}
+                        </strong>
+                    </td>
+                </tr>
+                <tr>
+                    <th>Pins:</th>
+                    <td>{{ .PinsString }}</td>
+                </tr>
+            </table>
+
+            <div class="action-section">
+                <div class="action-title">Last Action Data</div>
+                <pre
+                    class="json-container"
+                ><code>{{ .PrettyAction }}</code></pre>
+            </div>
+            <div class="card-footer">
+                <div class="delete-zone">
+                    {{ if .TimeOut }}
+                    <label class="switch-container">
+                        <span class="switch">
+                            <input
+                                type="checkbox"
+                                class="delete-toggle"
+                                data-ssdp="{{ .SSDP }}"
+                            />
+                            <span class="slider"></span>
+                        </span>
+                        Allow deletion
+                    </label>
+                    <button
+                        class="btn-delete delete-btn"
+                        data-ssdp="{{ .SSDP }}"
+                        style="display: none"
+                    >
+                        Delete device
+                    </button>
+                    {{ end }}
+                </div>
+                <div>
+                    <button class="btn-config cfg-btn" data-ssdp="{{ .SSDP }}">
+                        Configure device
+                    </button>
+                </div>
+            </div>
+        </div>
+        {{ end }}
+
+        <p class="footer-note">
+            *There is <strong>GMT (UTC±0)</strong> side datetime.
+        </p>
+
+        <script>
+            // "Configure device" button
+            document.querySelectorAll(".cfg-btn").forEach((button) => {
+                button.addEventListener("click", function () {
+                    const ssdp = this.getAttribute("data-ssdp");
+
+                    const currentParams = new URLSearchParams(
+                        window.location.search,
+                    );
+                    let token = currentParams.get("token");
+
+                    if (!token) {
+                        token = localStorage.getItem("user_token") || "";
+                    }
+
+                    const targetParams = new URLSearchParams();
+                    targetParams.set("ssdp", ssdp);
+                    targetParams.set("token", token);
+
+                    window.location.href =
+                        "/devices/cfg?" + targetParams.toString();
+                });
+            });
+
+            // (Toggle Switches)
+            document.querySelectorAll(".delete-toggle").forEach((toggle) => {
+                toggle.addEventListener("change", function () {
+                    const ssdp = this.getAttribute("data-ssdp");
+                    const deleteBtn =
+                        this.closest(".delete-zone").querySelector(
+                            ".delete-btn",
+                        );
+
+                    if (this.checked) {
+                        deleteBtn.style.display = "inline-block";
+                    } else {
+                        deleteBtn.style.display = "none";
+                    }
+                });
+            });
+
+            // "Delete device" button
+            document.querySelectorAll(".delete-btn").forEach((button) => {
+                button.addEventListener("click", function () {
+                    const ssdp = this.getAttribute("data-ssdp");
+
+                    const currentParams = new URLSearchParams(
+                        window.location.search,
+                    );
+                    let token = currentParams.get("token");
+                    if (!token) {
+                        token = localStorage.getItem("user_token") || "";
+                    }
+
+                    // REST DELETE request
+                    fetch("/api/v1/devices", {
+                        method: "DELETE",
+                        headers: {
+                            "Content-Type": "application/json",
+                            xToken: token,
+                        },
+                        body: JSON.stringify({ ssdp: ssdp }),
+                    })
+                        .then((response) => {
+                            if (response.ok) {
+                                // Перенаправление на /devices в случае успеха
+                                window.location.href = "/devices";
+                            } else {
+                                alert(
+                                    "Deleting device error. Status: " +
+                                        response.status,
+                                );
+                            }
+                        })
+                        .catch((error) => {
+                            console.error("Error during delete:", error);
+                            alert("The request to remove the device failed.");
+                        });
+                });
+            });
+        </script>
+    </body>
+</html>

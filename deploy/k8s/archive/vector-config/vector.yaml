@@ -1,0 +1,62 @@
+sources:
+  esp_kafka_source:
+    type: "kafka"
+    bootstrap_servers: "host.docker.internal:9092"
+    topics: 
+      - "pins"
+    group_id: "vector-monitoring-group"
+    auto_offset_reset: "smallest"
+    key_field: "kafka_key"
+
+transforms:
+  parse_esp_data:
+    type: "remap"
+    inputs:
+      - "esp_kafka_source"
+    
+    source: |
+      device_id = string!(.kafka_key)
+      message_body = string!(.message)
+      
+      # Убрали whitespace: true, так как по умолчанию пробелы и так обрабатываются корректно
+      parsed_pins, err = parse_key_value(message_body, field_delimiter: " ", key_value_delimiter: ":")
+      if err != null {
+        log("Failed to parse ESP message: " + err, level: "error")
+        abort
+      }
+
+      .pins = parsed_pins
+      .device_id = device_id
+      
+      del(.message)
+      del(.kafka_key)
+
+
+  to_vector_metrics:
+    type: "log_to_metric"
+    inputs:
+      - "parse_esp_data"
+    metrics:
+      - type: "gauge"
+        field: "pins.*"
+        name: "esp_gpio_status"
+        namespace: "" 
+        tags:
+          device_id: "{{device_id}}"
+          pin: "{{_field_name}}"
+
+sinks:
+  stdout_debug:
+    type: "console"
+    inputs:
+      - "to_vector_metrics"
+    encoding:
+      codec: "json"
+
+  victoria_metrics_sink:
+    type: "prometheus_remote_write"
+    inputs:
+      - "to_vector_metrics"
+    endpoint: "http://victoria_metrics:8428/api/v1/write"
+    healthcheck:
+      enabled: false

@@ -1,0 +1,52 @@
+networks:
+  esp_network:
+    driver: bridge
+
+services:
+  # ============================================================================
+  # CORE SERVICES (Always run, Tiny profile by default)
+  # ============================================================================
+  esp-server:
+    image: demonsoft/esp-server:${APP_VERSION}
+    container_name: esp-server
+    restart: unless-stopped
+    ports:
+      - "${REST_PORT}:80"
+    environment:
+      - ENVIRONMENT=${ENVIRONMENT}
+      - XTOKEN=${XTOKEN}
+      - MQTT_PROTOCOL=mqtt://
+      - MQTT_HOST=mosquitto             # use local mosquitto broker
+      - MQTT_PORT=1883                  # local port inside Docker network
+      - MQTT_USERNAME=
+      - MQTT_PASSWORD=
+      - MQTT_ROOT=${MQTT_ROOT}
+      - MQTT_CLIENT_ID=${MQTT_CLIENT_ID}
+      - MQTT_KEEP_ALIVE=${MQTT_KEEP_ALIVE}
+      - MQTT_PING_TIMEOUT=${MQTT_PING_TIMEOUT}
+    networks:
+      - esp_network
+    volumes:
+      - sqlite_data:/app
+
+  # ============================================================================
+  # SMALL PROFILE (Local MQTT Broker)
+  # ============================================================================
+  mosquitto:
+    image: eclipse-mosquitto:${MOSQUITTO_VERSION}
+    container_name: mosquitto
+    restart: unless-stopped
+    ports:
+      - "1883:1883"
+      - "9001:9001"
+    command: mosquitto -c /mosquitto/config/mosquitto.conf  
+    volumes:
+      - mosquitto_data:/mosquitto/data
+      - mosquitto_log:/mosquitto/log
+    networks:
+      - esp_network
+
+volumes:
+  sqlite_data:
+  mosquitto_data:  # Global declaration of volume for MQTT data
+  mosquitto_log:   # Global declaration of volume for MQTT logs

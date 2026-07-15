@@ -1,0 +1,176 @@
+networks:
+  esp_network:
+    driver: bridge
+
+services:
+  # ============================================================================
+  # CORE SERVICES
+  # ============================================================================
+  esp-server:
+    image: demonsoft/esp-server:${APP_VERSION}
+    container_name: esp-server
+    restart: unless-stopped
+    ports:
+      - "${REST_PORT}:80"
+    depends_on:
+      kafka:
+        condition: service_healthy
+    entrypoint: ["/bin/sh", "-c", "sleep 15 && exec /app/server-bin"]  # Delay start to allow Kafka to initialize
+    environment:
+      - ENVIRONMENT=${ENVIRONMENT}
+      - XTOKEN=${XTOKEN}
+      - MQTT_PROTOCOL=${MQTT_PROTOCOL}
+      - MQTT_HOST=mosquitto
+      - MQTT_PORT=1883
+      - MQTT_USERNAME=${MQTT_USERNAME}
+      - MQTT_PASSWORD=${MQTT_PASSWORD}
+      - MQTT_ROOT=${MQTT_ROOT}
+      - MQTT_CLIENT_ID=${MQTT_CLIENT_ID}
+      - MQTT_KEEP_ALIVE=${MQTT_KEEP_ALIVE}
+      - MQTT_PING_TIMEOUT=${MQTT_PING_TIMEOUT}
+      - KAFKA_RUN=${KAFKA_RUN}
+      - KAFKA_HOST=${KAFKA_HOST}
+      - KAFKA_PORT=${KAFKA_PORT}
+      - KAFKA_DEFAULT_TOPIC=${KAFKA_DEFAULT_TOPIC}
+    networks:
+      - esp_network
+    volumes:
+      - sqlite_data:/app
+
+  # ============================================================================
+  # MQTT BROKER
+  # ============================================================================
+  mosquitto:
+    image: eclipse-mosquitto:${MOSQUITTO_VERSION}
+    container_name: mosquitto
+    restart: unless-stopped
+    ports:
+      - "1883:1883"
+      - "9001:9001"
+    command: mosquitto -c /mosquitto/config/mosquitto.conf  
+    volumes:
+      - mosquitto_data:/mosquitto/data
+      - mosquitto_log:/mosquitto/log
+    networks:
+      - esp_network
+
+  # ============================================================================
+  # KAFKA INFRASTRUCTURE
+  # ============================================================================
+  kafka:
+    image: apache/kafka:${KAFKA_VERSION}
+    container_name: kafka
+    restart: unless-stopped
+    ports:
+      - "${KAFKA_PORT}:9092"
+    environment:
+      KAFKA_NODE_ID: 1
+      KAFKA_PROCESS_ROLES: broker,controller
+      KAFKA_LISTENERS: PLAINTEXT://0.0.0.0:9092,CONTROLLER://0.0.0.0:9093
+      KAFKA_ADVERTISED_LISTENERS: PLAINTEXT://kafka:9092
+      KAFKA_CONTROLLER_LISTENER_NAMES: CONTROLLER
+      KAFKA_LISTENER_SECURITY_PROTOCOL_MAP: CONTROLLER:PLAINTEXT,PLAINTEXT:PLAINTEXT
+      KAFKA_CONTROLLER_QUORUM_VOTERS: 1@kafka:9093
+      KAFKA_OFFSETS_TOPIC_REPLICATION_FACTOR: 1
+      KAFKA_TRANSACTION_STATE_LOG_REPLICATION_FACTOR: 1
+      KAFKA_TRANSACTION_STATE_LOG_MIN_ISR: 1
+      KAFKA_LOG_DIRS: /tmp/kraft-combined-logs
+    volumes:
+      - kafka_data:/var/lib/kafka/data
+    networks:
+      - esp_network
+    healthcheck:
+      test: ["CMD-SHELL", "/opt/kafka/bin/kafka-cluster.sh cluster-id --bootstrap-server localhost:9092 || exit 1"]
+      interval: 10s
+      timeout: 5s
+      retries: 5
+
+  kafka-init-topics:
+    image: apache/kafka:${KAFKA_VERSION}
+    container_name: kafka-init-topics
+    depends_on:
+      kafka:
+        condition: service_healthy
+    networks:
+      - esp_network
+    # Полностью сбрасываем зашитый внутренний пускач образа на чистую оболочку
+    entrypoint: [ "/bin/bash", "-c" ]
+    # Передаем команды как единый текстовый аргумент для bash
+    command: >
+      "
+      echo '=== STARTING TOPIC CREATION ===' &&
+      /opt/kafka/bin/kafka-topics.sh --bootstrap-server kafka:9092 --create --if-not-exists --topic root --partitions 1 --replication-factor 1 &&
+      /opt/kafka/bin/kafka-topics.sh --bootstrap-server kafka:9092 --create --if-not-exists --topic actions --partitions 1 --replication-factor 1 &&
+      /opt/kafka/bin/kafka-topics.sh --bootstrap-server kafka:9092 --create --if-not-exists --topic logs --partitions 1 --replication-factor 1 &&
+      /opt/kafka/bin/kafka-topics.sh --bootstrap-server kafka:9092 --create --if-not-exists --topic pins --partitions 1 --replication-factor 1 &&
+      /opt/kafka/bin/kafka-topics.sh --bootstrap-server kafka:9092 --create --if-not-exists --topic anomalies --partitions 1 --replication-factor 1 &&
+      echo '=== CURRENT KAFKA TOPICS ===' &&
+      /opt/kafka/bin/kafka-topics.sh --bootstrap-server kafka:9092 --list
+      "
+
+
+  kafdrop:
+    image: obsidiandynamics/kafdrop:${KAFDROP_VERSION}
+    container_name: kafdrop
+    restart: unless-stopped
+    depends_on:
+      kafka:
+        condition: service_healthy
+    ports:
+      - "${KAFDROP_PORT:-9000}:9000"
+    environment:
+      KAFKA_BROKERCONNECT: "kafka:9092"
+      JVM_OPTS: "-Xms32M -Xmx64M"
+      SERVER_SERVLET_CONTEXT_PATH: "/"
+    networks:
+      - esp_network
+
+  # ============================================================================
+  # WORKERS STACK
+  # ============================================================================
+  kworker:
+    image: demonsoft/kworker:${APP_VERSION}
+    container_name: kworker
+    restart: unless-stopped
+    depends_on:
+      kafka:
+        condition: service_healthy
+    environment:
+      - KAFKA_HOST=${KAFKA_HOST}
+      - KAFKA_PORT=${KAFKA_PORT}
+    networks:
+      - esp_network
+
+  ai-worker:
+    image: demonsoft/ai-worker:${APP_VERSION}
+    container_name: ai-worker
+    restart: unless-stopped
+    depends_on:
+      kafka:
+        condition: service_healthy
+    environment:
+      - KAFKA_HOST=${KAFKA_HOST}
+      - KAFKA_PORT=${KAFKA_PORT}
+      - OPENROUTER_API_KEY=${OPENROUTER_API_KEY}
+    networks:
+      - esp_network
+
+  hworker:
+    image: demonsoft/hworker:${APP_VERSION}
+    container_name: hworker
+    restart: unless-stopped
+    depends_on:
+      kafka:
+        condition: service_healthy
+    environment:
+      - KAFKA_HOST=${KAFKA_HOST}
+      - KAFKA_PORT=${KAFKA_PORT}
+      - WEBHOOK_URL=${WEBHOOK_URL}
+    networks:
+      - esp_network
+
+volumes:
+  sqlite_data:
+  mosquitto_data:
+  mosquitto_log:
+  kafka_data:

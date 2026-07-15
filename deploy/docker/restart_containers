@@ -1,0 +1,6 @@
+docker compose down && docker compose up -d
+docker exec -it local-kafka /opt/kafka/bin/kafka-topics.sh --create --topic root --bootstrap-server localhost:9092
+docker exec -it local-kafka /opt/kafka/bin/kafka-topics.sh --create --topic logs --bootstrap-server localhost:9092
+docker exec -it local-kafka /opt/kafka/bin/kafka-topics.sh --create --topic pins --bootstrap-server localhost:9092
+docker exec -it local-kafka /opt/kafka/bin/kafka-topics.sh --create --topic actions --bootstrap-server localhost:9092
+docker exec -it local-kafka /opt/kafka/bin/kafka-topics.sh --create --topic anomaly --bootstrap-server localhost:9092

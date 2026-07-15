@@ -1,0 +1,570 @@
+# --- PART 1: PERSISTENT VOLUME CLAIMS ---
+apiVersion: v1
+kind: PersistentVolumeClaim
+metadata:
+  name: kafka-pvc
+spec:
+  accessModes: [ReadWriteOnce]
+  resources: {requests: {storage: 5Gi}}
+---
+apiVersion: v1
+kind: PersistentVolumeClaim
+metadata:
+  name: victoriametrics-pvc
+spec:
+  accessModes: [ReadWriteOnce]
+  resources: {requests: {storage: 10Gi}}
+---
+apiVersion: v1
+kind: PersistentVolumeClaim
+metadata:
+  name: mosquitto-pvc
+spec:
+  accessModes: [ReadWriteOnce]
+  resources: {requests: {storage: 1Gi}}
+---
+apiVersion: v1
+kind: PersistentVolumeClaim
+metadata:
+  name: sqlite-pvc
+spec:
+  accessModes: [ReadWriteOnce]
+  resources: {requests: {storage: 1Gi}}
+
+# --- CONFIG MAPS ---
+---
+apiVersion: v1
+kind: ConfigMap
+metadata:
+  name: mosquitto-config
+data:
+  mosquitto.conf: |
+    listener 1883 0.0.0.0
+    allow_anonymous true
+    log_dest stdout
+    log_type all
+---
+apiVersion: v1
+kind: ConfigMap
+metadata:
+  name: vector-config
+data:
+  vector.yaml: |
+    sources:
+      esp_kafka_source:
+        type: "kafka"
+        bootstrap_servers: "kafka-service:9092"
+        group_id: "vector-monitoring"
+        topics: ["pins"]
+
+    transforms:
+      format_metrics:
+        type: "remap"
+        inputs: ["esp_kafka_source"]
+        source: |
+          device_id = string(.message_key) ?? "unknown_device"
+          message_body = string!(.message)
+          parsed_pins, err = parse_key_value(message_body, field_delimiter: " ", key_value_delimiter: ":")
+          if err == null {
+            lines = []
+            for_each(object(parsed_pins)) -> |pin_name, pin_value| {
+              numeric_value, err = to_int(pin_value)
+              if err == null {
+                line = "pin_values{device_id=\"" + device_id + "\",pin=\"" + pin_name + "\"} " + to_string(numeric_value)
+                lines = push(lines, line)
+              }
+            }
+            .message = join!(lines, separator: "\n")
+          }
+
+    sinks:
+      victoria_metrics_sink:
+        type: "http"
+        inputs: ["format_metrics"]
+        uri: "http://victoria-metrics-service:8428/api/v1/import/prometheus"
+        encoding:
+          codec: "text"
+
+---
+# --- PART 2: INFRASTRUCTURE (Kafka & Mosquitto) ---
+# Kafka Deployment
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: kafka-deployment
+spec:
+  replicas: 1
+  selector:
+    matchLabels:
+      app: kafka
+  template:
+    metadata:
+      labels:
+        app: kafka
+    spec:
+      containers:
+      - name: kafka
+        image: apache/kafka:3.7.0
+        ports:
+        - containerPort: 9092
+        - containerPort: 29092
+        - containerPort: 9093
+        env:
+        - name: KAFKA_NODE_ID
+          value: "1"
+        - name: KAFKA_PROCESS_ROLES
+          value: "broker,controller"
+        - name: KAFKA_CONTROLLER_QUORUM_VOTERS
+          value: "1@127.0.0.1:9093"
+        - name: KAFKA_LISTENERS
+          value: "INTERNAL://0.0.0.0:9092,EXTERNAL://0.0.0.0:9094,CONTROLLER://0.0.0.0:9093"
+        - name: KAFKA_ADVERTISED_LISTENERS
+          value: "INTERNAL://kafka-service:9092,EXTERNAL://localhost:9094"
+        - name: KAFKA_INTER_BROKER_LISTENER_NAME
+          value: "INTERNAL"
+        - name: KAFKA_CONTROLLER_LISTENER_NAMES
+          value: "CONTROLLER"
+        - name: KAFKA_LISTENER_SECURITY_PROTOCOL_MAP
+          value: "CONTROLLER:PLAINTEXT,INTERNAL:PLAINTEXT,EXTERNAL:PLAINTEXT"
+        - name: KAFKA_LOG_DIRS
+          value: "/var/lib/kafka/data"
+        - name: CLUSTER_ID
+          value: "MkU3OEVBNTcwNTJENDM2Qk"
+        - name: KAFKA_OFFSETS_TOPIC_REPLICATION_FACTOR
+          value: "1"
+        - name: KAFKA_TRANSACTION_STATE_LOG_REPLICATION_FACTOR
+          value: "1"
+        - name: KAFKA_AUTO_CREATE_TOPICS_ENABLE
+          value: "true"
+        volumeMounts:
+        - name: kafka-data
+          mountPath: /var/lib/kafka/data
+      volumes:
+      - name: kafka-data
+        persistentVolumeClaim:
+          claimName: kafka-pvc
+---
+apiVersion: v1
+kind: Service
+metadata:
+  name: kafka-service
+spec:
+  selector:
+    app: kafka
+  ports:
+    - name: kafka-port
+      port: 9092
+      targetPort: 9092
+
+# Kafdrop Deployment & Service
+---
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: kafdrop-deployment
+spec:
+  replicas: 1
+  selector:
+    matchLabels:
+      app: kafdrop
+  template:
+    metadata:
+      labels:
+        app: kafdrop
+    spec:
+
+      initContainers:
+      - name: wait-for-kafka
+        image: busybox:1.36
+        command: ['sh', '-c', 'until nc -z -w 2 kafka-service 9092; do echo "Waiting for Kafka..."; sleep 2; done']
+
+      containers:
+      - name: kafdrop
+        image: obsidiandynamics/kafdrop:latest
+        ports:
+        - containerPort: 9000
+        env:
+        - name: KAFKA_BROKERCONNECT
+          value: "kafka-service:9092"
+---
+apiVersion: v1
+kind: Service
+metadata:
+  name: kafdrop-service
+spec:
+  selector:
+    app: kafdrop
+  ports:
+    - port: 9000
+      targetPort: 9000
+  type: LoadBalancer
+
+# Mosquitto Deployment
+---
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: mosquitto-deployment
+  labels:
+    app: mosquitto
+spec:
+  replicas: 1
+  selector:
+    matchLabels:
+      app: mosquitto
+  template:
+    metadata:
+      labels:
+        app: mosquitto
+    spec:
+      securityContext:
+        fsGroup: 1883
+      containers:
+      - name: mosquitto
+        image: eclipse-mosquitto:2.0
+        ports:
+        - containerPort: 1883
+        volumeMounts:
+        - name: mosquitto-data
+          mountPath: /mosquitto/data
+        - name: config-volume
+          mountPath: /mosquitto/config/mosquitto.conf
+          subPath: mosquitto.conf
+      volumes:
+      - name: mosquitto-data
+        persistentVolumeClaim:
+          claimName: mosquitto-pvc
+      - name: config-volume
+        configMap:
+          name: mosquitto-config
+---
+apiVersion: v1
+kind: Service
+metadata:
+  name: mosquitto-service
+spec:
+  selector:
+    app: mosquitto
+  ports:
+    - port: 1883
+      targetPort: 1883
+
+---
+# --- PART 3: MONITORING STACK (VictoriaMetrics, Vector, Grafana) ---
+# VictoriaMetrics Deployment
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: victoria-metrics-deployment
+spec:
+  replicas: 1
+  selector:
+    matchLabels:
+      app: victoria-metrics
+  template:
+    metadata:
+      labels:
+        app: victoria-metrics
+    spec:
+      containers:
+      - name: victoria-metrics
+        image: victoriametrics/victoria-metrics:v1.101.0
+        args: ["-storageDataPath=/victoria-metrics-data"]
+        ports:
+        - containerPort: 8428
+        volumeMounts:
+        - name: vm-data
+          mountPath: /victoria-metrics-data
+      volumes:
+      - name: vm-data
+        persistentVolumeClaim:
+          claimName: victoriametrics-pvc
+---
+apiVersion: v1
+kind: Service
+metadata:
+  name: victoria-metrics-service
+spec:
+  selector:
+    app: victoria-metrics
+  ports:
+    - port: 8428
+      targetPort: 8428
+
+# Vector Deployment
+---
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: vector-deployment
+spec:
+  replicas: 1
+  selector:
+    matchLabels:
+      app: vector
+  template:
+    metadata:
+      labels:
+        app: vector
+    spec:
+
+      initContainers:
+      - name: wait-for-kafka
+        image: busybox:1.36
+        command: ['sh', '-c', 'until nc -z -w 2 kafka-service 9092; do echo "Waiting for Kafka..."; sleep 2; done']
+
+      containers:
+      - name: vector
+        image: timberio/vector:0.38.0-debian  
+        volumeMounts:
+        - name: config-volume
+          mountPath: /etc/vector
+      volumes:
+      - name: config-volume
+        configMap:
+          name: vector-config
+---
+# Grafana Deployment
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: grafana-deployment
+spec:
+  replicas: 1
+  selector:
+    matchLabels:
+      app: grafana
+  template:
+    metadata:
+      labels:
+        app: grafana
+    spec:
+      containers:
+      - name: grafana
+        image: grafana/grafana:10.4.1
+        ports:
+        - containerPort: 3000
+---
+apiVersion: v1
+kind: Service
+metadata:
+  name: grafana-service
+spec:
+  type: NodePort
+  selector:
+    app: grafana
+  ports:
+    - port: 3000
+      targetPort: 3000
+
+---
+# --- PART 4: APPLICATIONS (esp-server & Kafka Init Job) ---
+# esp-server Deployment
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: esp-server-deployment
+spec:
+  replicas: 1
+  selector:
+    matchLabels:
+      app: esp-server
+  template:
+    metadata:
+      labels:
+        app: esp-server
+    spec:
+      
+      initContainers:
+      - name: wait-for-infra
+        image: busybox:1.36
+        command: ['sh', '-c', 'until nc -z -w 2 kafka-service 9092 && nc -z -w 2 mosquitto-service 1883; do echo "Waiting for Kafka and Mosquitto..."; sleep 2; done']
+
+      containers:
+      - name: esp-server
+        image: demonsoft/esp-server:latest
+        readinessProbe:
+          tcpSocket:
+            port: 80
+          initialDelaySeconds: 15
+          periodSeconds: 5
+        imagePullPolicy: IfNotPresent
+        ports:
+        - containerPort: 80
+        env:
+        - name: XTOKEN
+          value: "019eb656-cbab-7a0e-b1a8-8b6014923877"
+        - name: REST_PORT
+          value: "80"
+        - name: MQTT_HOST
+          value: "mosquitto-service"
+        - name: MQTT_PORT
+          value: "1883"
+        - name: MQTT_PROTOCOL
+          value: "mqtt://"
+        - name: MQTT_ROOT
+          value: "root"
+        - name: KAFKA_RUN
+          value: "true"
+        - name: KAFKA_HOST
+          value: "kafka-service"
+        - name: KAFKA_PORT
+          value: "9092"
+        - name: KAFKA_DEFAULT_TOPIC
+          value: "pins"
+---
+apiVersion: v1
+kind: Service
+metadata:
+  name: esp-server-service
+spec:
+  selector:
+    app: esp-server
+  ports:
+    - port: 80
+      targetPort: 80
+      nodePort: 30080
+  type: LoadBalancer
+
+# kworker Deployment
+---
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: kworker-deployment
+spec:
+  replicas: 1
+  selector:
+    matchLabels:
+      app: kworker
+  template:
+    metadata:
+      labels:
+        app: kworker
+    spec:
+      
+      initContainers:
+      - name: wait-for-infra
+        image: busybox:1.36
+        command: ['sh', '-c', 'until nc -z -w 2 kafka-service 9092 && nc -z -w 2 mosquitto-service 1883; do echo "Waiting for Kafka and Mosquitto..."; sleep 2; done']
+
+      containers:
+      - name: kworker
+        image: demonsoft/kworker:latest
+        imagePullPolicy: IfNotPresent
+        env:
+        - name: KAFKA_HOST
+          value: "kafka-service"
+        - name: KAFKA_PORT
+          value: "9092"
+        - name: KAFKA_DEFAULT_TOPIC
+          value: "root"
+
+# ai-worker Deployment
+---
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: ai-worker-deployment
+spec:
+  replicas: 1
+  selector:
+    matchLabels:
+      app: ai-worker
+  template:
+    metadata:
+      labels:
+        app: ai-worker
+    spec:
+
+      initContainers:
+      - name: wait-for-infra
+        image: busybox:1.36
+        command: ['sh', '-c', 'until nc -z -w 2 kafka-service 9092 && nc -z -w 2 mosquitto-service 1883; do echo "Waiting for Kafka and Mosquitto..."; sleep 2; done']
+
+      containers:
+      - name: ai-worker
+        image: demonsoft/ai-worker:latest
+        imagePullPolicy: IfNotPresent
+        env:
+        - name: KAFKA_HOST
+          value: "kafka-service"
+        - name: KAFKA_PORT
+          value: "9092"
+        - name: KAFKA_DEFAULT_TOPIC
+          value: "anomalies" # Обратите внимание: в джобе ниже мы создадим именно этот топик
+        - name: OPENROUTER_MODEL
+          value: "meta-llama/llama-3-8b-instruct:free"
+        - name: OPENROUTER_API_KEY
+          valueFrom:
+            secretKeyRef:
+              name: openrouter-secret
+              key: OPENROUTER_API_KEY
+
+# hworker Deployment
+---
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: hworker-deployment
+spec:
+  replicas: 1
+  selector:
+    matchLabels:
+      app: hworker
+  template:
+    metadata:
+      labels:
+        app: hworker
+    spec:
+      
+      initContainers:
+      - name: wait-for-infra
+        image: busybox:1.36
+        command: ['sh', '-c', 'until nc -z -w 2 kafka-service 9092 && nc -z -w 2 mosquitto-service 1883; do echo "Waiting for Kafka and Mosquitto..."; sleep 2; done']
+
+      containers:
+      - name: hworker
+        image: demonsoft/hworker:latest
+        imagePullPolicy: IfNotPresent
+        env:
+        - name: KAFKA_HOST
+          value: "kafka-service"
+        - name: KAFKA_PORT
+          value: "9092"
+        - name: KAFKA_DEFAULT_TOPIC
+          value: "actions"
+        - name: WEBHOOK_URL
+          value: "http://host.minikube.internal:8080/webhook"  
+
+# Kafka Topic Initialization Job
+---
+apiVersion: batch/v1
+kind: Job
+metadata:
+  name: kafka-init-topics-job
+spec:
+  template:
+    spec:
+      
+      initContainers:
+      - name: wait-for-kafka
+        image: busybox:1.36
+        command: ['sh', '-c', 'until nc -z -w 2 kafka-service 9092; do echo "Waiting for Kafka..."; sleep 2; done']
+
+      restartPolicy: OnFailure
+      containers:
+      - name: kafka-init-topics
+        image: apache/kafka:3.7.0
+        command: ["/bin/bash", "-c"]
+        args:
+        - |
+          echo "=== Waiting for Kafka to be ready ===" &&
+          sleep 10 &&
+          /opt/kafka/bin/kafka-topics.sh --bootstrap-server kafka-service:9092 --create --if-not-exists --topic root --partitions 1 --replication-factor 1 &&
+          /opt/kafka/bin/kafka-topics.sh --bootstrap-server kafka-service:9092 --create --if-not-exists --topic actions --partitions 1 --replication-factor 1 &&
+          /opt/kafka/bin/kafka-topics.sh --bootstrap-server kafka-service:9092 --create --if-not-exists --topic logs --partitions 1 --replication-factor 1 &&
+          /opt/kafka/bin/kafka-topics.sh --bootstrap-server kafka-service:9092 --create --if-not-exists --topic pins --partitions 1 --replication-factor 1 &&
+          /opt/kafka/bin/kafka-topics.sh --bootstrap-server kafka-service:9092 --create --if-not-exists --topic anomalies --partitions 1 --replication-factor 1 &&
+          echo "=== Topics created successfully ==="
+

@@ -1,0 +1,152 @@
+#!/bin/bash
+
+# Function to clean up background processes on exit (Ctrl+C)
+cleanup() {
+    echo -e "\n🛑 Stopping all background processes..."
+    kill $TUNNEL_PID $FORWARD_MOSQUITTO_PID $FORWARD_KAFKA_PID $FORWARD_GRAFANA_PID $FORWARD_SERVER_PID 2>/dev/null
+    echo "👋 Environment stopped cleanly."
+    exit 0
+}
+trap cleanup SIGINT SIGTERM
+# Navigate to the directory where this script is physically located
+cd "$(dirname "$0")" || exit 1
+
+# 0. Start Docker Desktop if it is not already running
+if ! docker info > /dev/null 2>&1; then
+    echo "🐳 Docker Desktop is not running. Starting..."
+    open -a Docker
+
+    # Wait until Docker is fully initialized
+    echo "⏳ Waiting for the Docker daemon to start..."
+    until docker info > /dev/null 2>&1; do
+        sleep 2
+    done
+    echo "✅ Docker Desktop started successfully!"
+else
+    echo "✅ Docker Desktop is already running."
+fi
+
+echo "🚀 Starting the IoT environment (HUGE Configuration)..."
+
+# 1. Start Minikube
+echo "📦 Starting the Minikube cluster..."
+minikube start --driver=docker
+
+# 2. Clean up ports from stale processes on macOS
+echo "🔍 Checking local ports for stale processes..."
+for PORT in 1883 9092 9000 3000 8080; do
+    PID=$(lsof -t -i:$PORT)
+    if [ ! -z "$PID" ]; then
+        echo "⚠️ Port $PORT is occupied by process (PID: $PID). Terminating..."
+        kill -9 $PID
+        sleep 1
+    fi
+done
+echo "✅ All required local ports are available."
+
+# 3. Handle Environment Variables and Kubernetes Secrets
+if [ -f ".env" ]; then
+    echo "🔑 Loading environment variables from .env..."
+    export $(grep -v '^#' .env | xargs)
+else
+    echo "⚠️ .env file not found! Copying from .env.example..."
+    cp .env.example .env
+    export $(grep -v '^#' .env | xargs)
+fi
+
+if [ -z "$OPENROUTER_API_KEY" ]; then
+    echo "❌ Error: OPENROUTER_API_KEY is not set in your .env file!"
+    exit 1
+fi
+
+echo "🔐 Recreating Kubernetes Secret for OpenRouter..."
+kubectl delete secret openrouter-secret --ignore-not-found
+kubectl create secret generic openrouter-secret --from-literal=OPENROUTER_API_KEY="$OPENROUTER_API_KEY"
+
+# 4. Deploying Kubernetes Manifests in correct order
+echo "🏗️ Deploying Infrastructure and Applications..."
+
+kubectl delete job kafka-init-topics-job --ignore-not-found=true
+kubectl apply -f infra.yaml
+
+echo "⏳ Waiting for core infrastructure images to download and pods to start..."
+echo "(This can take 1-3 minutes during a fresh, first-time installation)..."
+
+# Waiting for core infrastructure images to download and pods to start
+kubectl wait --for=condition=ready pod -l app=kafka --timeout=300s
+kubectl wait --for=condition=ready pod -l app=mosquitto --timeout=300s
+
+echo "✅ Core infrastructure is ready!"
+
+# Display the current status
+echo "===================================================="
+echo "Deployment initiated successfully via infra.yaml!"
+echo "===================================================="
+echo "--> Current Jobs (Topic Initialization):"
+kubectl get jobs
+
+echo ""
+echo "--> Current Pods Deployment Status:"
+kubectl get pods
+echo "===================================================="
+echo ""
+
+echo "--> Waiting for CoreDNS to stabilize..."
+kubectl rollout status deployment/coredns -n kube-system --timeout=90s
+
+# 5. Start the Minikube tunnel in the background
+echo "🚇 Starting the Minikube tunnel (sudo password may be required)..."
+sudo -v 
+sudo minikube tunnel > /dev/null 2>&1 &
+TUNNEL_PID=$!
+echo "✅ Tunnel started in the background (PID: $TUNNEL_PID)"
+
+# 6. Start port forwarding in the background for local development
+echo "🔌 Starting port-forwards..."
+kubectl port-forward service/mosquitto-service 1883:1883 --address 0.0.0.0 > /dev/null 2>&1 &
+FORWARD_MOSQUITTO_PID=$!
+
+kubectl port-forward service/kafka-service 9092:9092 --address 0.0.0.0 > /dev/null 2>&1 &
+FORWARD_KAFKA_PID=$!
+
+kubectl port-forward service/grafana-service 3000:3000 --address 0.0.0.0 > /dev/null 2>&1 &
+FORWARD_GRAFANA_PID=$!
+
+kubectl port-forward service/esp-server-service 8080:80 --address 0.0.0.0 > /dev/null 2>&1 &
+FORWARD_SERVER_PID=$!
+echo "✅ All port-forwards started successfully."
+
+# 7. Open web interfaces for monitoring
+echo "⏳ Waiting for web interfaces to become available (5 seconds)..."
+sleep 5
+
+echo "📊 Opening Grafana..."
+open http://localhost:3000
+
+echo "🔍 Launching and opening Kafdrop via Minikube..."
+minikube service kafdrop-service &
+
+echo "☸️ Launching and opening the Kubernetes Dashboard..."
+minikube dashboard &
+
+echo "🎉 All systems are up and running!"
+echo "--------------------------------------------------"
+echo "Backend (esp-server) is available at http://127.0.0.1:8080"
+echo "MQTT broker is listening for ESP controllers on port 1883"
+echo "Kafka broker is accessible locally on port 9092"
+echo "Grafana Dashboard is available at http://localhost:3000"
+echo "--------------------------------------------------"
+echo "💡 PRESS CTRL+C TO STOP ALL SERVICES AND CLEAN UP PORT-FORWARDS"
+echo "--------------------------------------------------"
+
+# ---- Automatically open a new terminal window to monitor pods ----
+CURRENT_DIR=$(pwd)
+echo "📂 Opening an active workspace in a new Terminal window..."
+
+osascript -e "tell application \"Terminal\"
+    do script \"cd '$CURRENT_DIR' && echo '=== Kubernetes Status ===' && kubectl get svc && kubectl get pods\"
+    activate
+end tell"
+
+# Keep script alive to handle the trap
+wait

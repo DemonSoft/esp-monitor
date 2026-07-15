@@ -1,0 +1,58 @@
+    sources:
+      esp_kafka_source:
+        type: "kafka"
+        bootstrap_servers: "kafka:9092"
+        group_id: "vector-monitoring"
+        topics:
+          - "pins"
+
+    transforms:
+      format_metrics:
+        type: "remap"
+        inputs:
+          - "esp_kafka_source"
+        source: |
+          device_id = string(.message_key) ?? "unknown_device"
+          message_body = string!(.message)
+          
+          parsed_pins, err = parse_key_value(message_body, field_delimiter: " ", key_value_delimiter: ":")
+          if err != null {
+            log("Failed to parse ESP message: " + err, level: "error")
+            abort
+          }
+
+          lines = []
+          for_each(object(parsed_pins)) -> |pin_name, pin_value| {
+            numeric_value, err = to_int(pin_value)
+            if err == null {
+              # Use to_string() instead of string!() for converting integer -> string
+              line = "pin_values{device_id=\"" + device_id + "\",pin=\"" + pin_name + "\"} " + to_string(numeric_value)
+              lines = push(lines, line)
+            }
+          }
+
+          # Use join!() to concatenate the array of strings with a newline separator
+          .message = join!(lines, separator: "\n")
+
+    sinks:
+      stdout_debug:
+        type: "console"
+        inputs:
+          - "format_metrics"
+        encoding:
+          codec: "text"
+
+      victoria_metrics_sink:
+        type: "http"
+        inputs:
+          - "format_metrics"
+        uri: "http://victoria-metrics:8428/api/v1/import/prometheus"
+        encoding:
+          codec: "text"
+
+#    sinks:
+#      console_debug:
+#        type: "console"
+#        inputs: ["format_metrics"]
+#        encoding:
+#          codec: "json"
