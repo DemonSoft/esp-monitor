@@ -411,7 +411,7 @@ spec:
         - name: KAFKA_PORT
           value: "9092"
         - name: KAFKA_DEFAULT_TOPIC
-          value: "pins"
+          value: "root"
 ---
 apiVersion: v1
 kind: Service
