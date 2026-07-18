@@ -12,10 +12,9 @@ let Settings = SettingsProvider.instance
 class SettingsProvider {
     static fileprivate (set) var instance = SettingsProvider()
     
-    @AppStorage("wifiExpanded") var wifiExpanded: Bool = false
+    @AppStorage("wifiExpanded") var wifiExpanded: Bool = true
     @AppStorage("generalExpanded") var generalExpanded: Bool = false
     @AppStorage("mqttExpanded") var mqttExpanded: Bool = false
-    @AppStorage("managementExpanded") var managementExpanded: Bool = true
 
     @AppStorage("wifiSsid") var wifiSsid: String = ""
     @AppStorage("wifiPass")    var wifiPass: String = ""

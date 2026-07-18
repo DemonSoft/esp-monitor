@@ -8,7 +8,7 @@
 
 
 // Access point credentials.
-const char *apSsid = "esp8266-setup";
+const char *apSsid = "esp-setup";
 const char *apPassword = "1qazxsw2";
 const int wifiPOWER = 10; // Wi-Fi output power in dBm (0-20). Default is 20 dBm. Lower values reduce power consumption and range.
 // Data for Wi-Fi reconnection

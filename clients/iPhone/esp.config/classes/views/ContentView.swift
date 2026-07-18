@@ -12,31 +12,43 @@ struct ContentView: View {
     @State var vm = ContentVM()
 
     var body: some View {
-        VStack {
-            StatusSection()
-            ScrollView {
-                VStack {
-                    WiFiSection()
-                    GeneralSection()
-                    MqttSection()
-                    ManagementSection()
+        ZStack {
+            Color.black
+            VStack {
+                StatusSection()
+                ScrollView {
+                    VStack {
+                        WiFiSection()
+                        GeneralSection()
+                        MqttSection()
+                    }
+                    .padding()
                 }
-                .padding()
+                .frame(maxWidth: .infinity, maxHeight: .infinity)
+                Spacer()
+                ManagementSection()
             }
-            .frame(maxWidth: .infinity, maxHeight: .infinity)
         }
     }
     
     private func StatusSection() -> some View {
         Group {
-            if self.vm.connected {
-                VStack {
-                    Text("Connected to microcontroller")
-                        .foregroundStyle(.white)
+            VStack {
+                if self.vm.connected {
+                    VStack {
+                        Text("Connected to microcontroller")
+                            .foregroundStyle(.white)
+                            .padding()
+                    }
+                    .frame(maxWidth: .infinity)
+                    .background(.green)
+                }
+             
+                if self.vm.process {
+                    ProgressView()
+                        .foregroundColor(.white)
                         .padding()
                 }
-                .frame(maxWidth: .infinity)
-                .background(.green)
             }
         }
     }
@@ -47,24 +59,23 @@ struct ContentView: View {
             VStack{
                 HStack {
                     Text("SSID:")
-                        .foregroundColor(.black)
                         .frame(width:60, alignment: .trailing)
                     TextField("Enter Wi-Fi SSID here", text: self.$vm.wifiSsid)
                         .padding()
-                        .foregroundColor(.black)
-
+                        .textInputAutocapitalization(.never)
                 }
+                .foregroundColor(.white)
                 .frame(maxWidth: .infinity)
 
                 HStack {
                     Text("Pass:")
-                        .foregroundColor(.black)
                         .frame(width:60, alignment: .trailing)
                     TextField("Enter Wi-Fi password here", text: self.$vm.wifiPass)
                         .padding()
-                        .foregroundColor(.black)
+                        .textInputAutocapitalization(.never)
 
                 }
+                .foregroundColor(.white)
                 .frame(maxWidth: .infinity)
             }
             .padding(.vertical)
@@ -76,48 +87,45 @@ struct ContentView: View {
             VStack{
                 HStack {
                     Text("SSDP:")
-                        .foregroundColor(.black)
                         .frame(width:60, alignment: .trailing)
                     TextField("Enter SSDP name here", text: self.$vm.ssdp)
                         .padding()
-                        .foregroundColor(.black)
+                        .textInputAutocapitalization(.never)
                     Button("↺") {
                         self.vm.createSSDPName()
                     }
+                    .foregroundColor(.white)
                     .frame(width: 44, height: 44)
-                    .foregroundColor(.blue)
                     .padding(.leading)
                 }
                 .frame(maxWidth: .infinity)
 
                 HStack {
                     Text("mDNS:")
-                        .foregroundColor(.black)
                         .frame(width:60, alignment: .trailing)
                     TextField("Enter mDNS here", text: self.$vm.mdns)
                         .padding()
-                        .foregroundColor(.black)
+                        .textInputAutocapitalization(.never)
                     Button("↺") {
                         self.vm.resetMDNS()
                     }
+                    .foregroundColor(.white)
                     .frame(width: 44, height: 44)
-                    .foregroundColor(.blue)
                     .padding(.leading)
                 }
                 .frame(maxWidth: .infinity)
 
                 HStack {
                     Text("Port:")
-                        .foregroundColor(.black)
                         .frame(width:60, alignment: .trailing)
                     TextField("Enter HTTP port here", text: self.$vm.httpPort)
                         .padding()
-                        .foregroundColor(.black)
+                        .textInputAutocapitalization(.never)
                     Button("↺") {
                         self.vm.resetHttpPort()
                     }
+                    .foregroundColor(.white)
                     .frame(width: 44, height: 44)
-                    .foregroundColor(.blue)
                     .padding(.leading)
                 }
                 .frame(maxWidth: .infinity)
@@ -131,61 +139,59 @@ struct ContentView: View {
             VStack {
                 HStack {
                     Text("Host:")
-                        .foregroundColor(.black)
                         .frame(width:60, alignment: .trailing)
                     TextField("Enter MQTT host here", text: self.$vm.mqttHost)
                         .padding()
-                        .foregroundColor(.black)
+                        .textInputAutocapitalization(.never)
 
                 }
+                .foregroundColor(.white)
                 .frame(maxWidth: .infinity)
                 HStack {
                     Text("Port:")
-                        .foregroundColor(.black)
                         .frame(width:60, alignment: .trailing)
                     TextField("Enter MQTT port here", text: self.$vm.mqttPort)
                         .padding()
-                        .foregroundColor(.black)
+                        .textInputAutocapitalization(.never)
                     Button("↺") {
                         self.vm.resetMqttPort()
                     }
+                    .foregroundColor(.white)
                     .frame(width: 44, height: 44)
-                    .foregroundColor(.blue)
                     .padding(.leading)
                 }
                 .frame(maxWidth: .infinity)
                 HStack {
                     Text("User:")
-                        .foregroundColor(.black)
                         .frame(width:60, alignment: .trailing)
                     TextField("Enter MQTT user name here", text: self.$vm.mqttUser)
                         .padding()
-                        .foregroundColor(.black)
+                        .textInputAutocapitalization(.never)
 
                 }
+                .foregroundColor(.white)
                 .frame(maxWidth: .infinity)
                 HStack {
                     Text("Pass:")
-                        .foregroundColor(.black)
                         .frame(width:60, alignment: .trailing)
                     TextField("Enter MQTT user password here", text: self.$vm.mqttPass)
                         .padding()
-                        .foregroundColor(.black)
+                        .textInputAutocapitalization(.never)
 
                 }
+                .foregroundColor(.white)
                 .frame(maxWidth: .infinity)
                 HStack {
                     Text("Root:")
-                        .foregroundColor(.black)
                         .frame(width:60, alignment: .trailing)
                     TextField("Enter MQTT root topic here", text: self.$vm.mqttRoot)
                         .padding()
-                        .foregroundColor(.black)
+                        .textInputAutocapitalization(.never)
                     Button("↺") {
                         self.vm.createMqttRoot()
                     }
+                    .foregroundColor(.white)
                     .frame(width: 44, height: 44)
-                    .foregroundColor(.blue)
                     .padding(.leading)
                 }
                 .frame(maxWidth: .infinity)
@@ -195,39 +201,36 @@ struct ContentView: View {
     }
 
     private func ManagementSection() -> some View {
-        DisclosureGroup("Management", isExpanded: self.$vm.managementExpanded) {
-            VStack {
-                Button("Save configuration") {
-                    self.vm.save()
-                }
-                .padding()
-                .frame(maxWidth: .infinity)
-                .foregroundColor(.white)
-                .background(.indigo)
-                .cornerRadius(8)
-
-                Button("Reconnection") {
-                    self.vm.reconnection()
-                }
-                .padding()
-                .frame(maxWidth: .infinity)
-                .foregroundColor(.white)
-                .background(.indigo)
-                .cornerRadius(8)
-
-                Button("Send") {
-                    self.vm.send()
-                }
-                .padding()
-                .frame(maxWidth: .infinity)
-                .foregroundColor(.white)
-                .background(.indigo)
-                .cornerRadius(8)
+        VStack {
+            Button("Save configuration") {
+                self.vm.save()
             }
-            .padding(.vertical)
-        }
-    }
+            .padding()
+            .frame(maxWidth: .infinity)
+            .foregroundColor(.white)
+            .background(.indigo)
+            .cornerRadius(8)
 
+            Button("Reconnection") {
+                self.vm.reconnection()
+            }
+            .padding()
+            .frame(maxWidth: .infinity)
+            .foregroundColor(.white)
+            .background(.indigo)
+            .cornerRadius(8)
+
+            Button("Send") {
+                self.vm.send()
+            }
+            .padding()
+            .frame(maxWidth: .infinity)
+            .foregroundColor(.white)
+            .background(.indigo)
+            .cornerRadius(8)
+        }
+        .padding()
+    }
 }
 
 #Preview {

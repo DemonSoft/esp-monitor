@@ -19,7 +19,6 @@ class ContentVM {
     var wifiExpanded       = Settings.wifiExpanded
     var generalExpanded    = Settings.generalExpanded
     var mqttExpanded       = Settings.mqttExpanded
-    var managementExpanded = Settings.managementExpanded
     
     // Wi-Fi section
     var wifiSsid = Settings.wifiSsid
@@ -39,11 +38,12 @@ class ContentVM {
 
     
     var connected = false
+    var process = false
 
     // MARK: - Private properties
-    private var ssidAP = "esp8266-setup"
+    private var ssidAP = "esp-setup"
     private var passAP = "1qazxsw2"
-    private var hostAP = "http://192.168.4"
+    private var hostAP = "http://192.168.4.1"
     private var portAP = "80"
     
     private var configUrl: String {
@@ -80,7 +80,6 @@ class ContentVM {
         Settings.wifiExpanded = self.wifiExpanded
         Settings.generalExpanded = self.generalExpanded
         Settings.mqttExpanded = self.mqttExpanded
-        Settings.managementExpanded = self.managementExpanded
         
         Settings.wifiSsid = self.wifiSsid
         Settings.wifiPass = self.wifiPass
@@ -95,6 +94,11 @@ class ContentVM {
         Settings.mqttUser = self.mqttUser
         Settings.mqttPass = self.mqttPass
         Settings.mqttRoot = self.mqttRoot
+        
+        self.process = true
+        self.main(0.5) {
+            self.process = false
+        }
     }
     
     func reconnection() {
@@ -127,8 +131,13 @@ class ContentVM {
         
         // IMPORTANT FOR IoT: the network keeps only until the application is active on the screen.
             hotspotConfig.joinOnce = true
-
-        NEHotspotConfigurationManager.shared.apply(hotspotConfig) { (error) in
+        
+        self.process = true
+        self.connected = false
+        NEHotspotConfigurationManager.shared.apply(hotspotConfig) {[weak self] (error) in
+            self?.main {
+                self?.process = false
+            }
             if let error = error {
                 let nsError = error as NSError
                 switch nsError.code {
@@ -141,7 +150,9 @@ class ContentVM {
                 }
             } else {
                 print("Device connected successfully to \(ssid)")
-                self.connected = true
+                self?.main {
+                    self?.connected = true
+                }
             }
         }
     }
@@ -151,6 +162,7 @@ class ContentVM {
         NEHotspotConfigurationManager.shared.removeConfiguration(forSSID: ssid)
         print("The network configuration \(ssid) was removed. Device comes back to previous network.")
         self.connected = false
+        self.process   = false
     }
 
     
@@ -169,7 +181,9 @@ class ContentVM {
         
         request.timeoutInterval = 10.0
         
-        let task = URLSession.shared.dataTask(with: request) { data, response, error in
+        self.process = true
+
+        let task = URLSession.shared.dataTask(with: request) {[weak self] data, response, error in
             if let error = error {
                 print("Network error: \(error.localizedDescription)")
                 return
@@ -179,7 +193,7 @@ class ContentVM {
                 print("Check status code from ESP: \(httpResponse.statusCode)")
                 
                 if httpResponse.statusCode == 200 {
-                    print("Data transferred TO esp8266 successfully!")
+                    print("Data transferred TO esp successfully!")
                     
                     // RUS:
                     // Если передача данных успешная, то микроконтроллер сам потушит точку доступа,
@@ -189,16 +203,27 @@ class ContentVM {
                     // If the data transfer is successful, the microcontroller
                     // automatically turns off the access point.
                     // The "phone" automatically switches to the previous Wi-Fi network.
-                    
+                    self?.main {
+                        self?.connected = false
+                    }
                 }
             }
             
             if let data = data, let responseString = String(data: data, encoding: .utf8) {
                 print("Microcontroller response: \(responseString)")
             }
+            
+            self?.main {
+                self?.process = false
+            }
         }
         
         task.resume()
     }
-
+    
+    public func main(_ seconds:Double = 0.0, closure:@escaping ()->()) {
+        DispatchQueue.main.asyncAfter(deadline: .now() + seconds) {
+            closure()
+        }
+    }
 }
