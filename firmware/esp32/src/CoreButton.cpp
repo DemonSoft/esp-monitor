@@ -13,7 +13,7 @@ const long pollInterval = 100;
 const unsigned long longPressTime = 3000;
 
 void setupButton() {
-  pinMode(buttonPin, INPUT);
+  pinMode(buttonPin, INPUT_PULLUP);
 }
 
 void loopButton() {
@@ -22,11 +22,11 @@ void loopButton() {
 
   buttonState = digitalRead(buttonPin);
 
-  if (buttonState == HIGH && lastButtonState == LOW) {
+  if (buttonState == LOW && lastButtonState == HIGH) {
     buttonPressedMillis = millis();
   }
 
-  if (buttonState == LOW && lastButtonState == HIGH) {
+  if (buttonState == HIGH && lastButtonState == LOW) {
     unsigned long pressedDuration = millis() - buttonPressedMillis;
     if (pressedDuration >= longPressTime) {
       blink(".-.-.-");
