@@ -1,4 +1,5 @@
 #include "CoreBlink.hpp"
+#include "CoreCamera.h"
 /*
   Внимание! Эти функции работают синхронно!!!
   Т.е. микроконтроллер будет замораживаться на заданный интервал!
@@ -27,8 +28,8 @@ void blink(String pattern) {
 
 void durationBlink(int duration)  {
   int waiting = 100;
-  digitalWrite(LED_BUILTIN, HIGH);
+  digitalWrite(FLASH_GPIO_NUM, HIGH);
   delay(duration);
-  digitalWrite(LED_BUILTIN, LOW);
+  digitalWrite(FLASH_GPIO_NUM, LOW);
   delay(waiting);
 }

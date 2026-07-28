@@ -6,6 +6,15 @@
 #include "CoreConfig.hpp"
 #include "CoreMQTT.hpp"
 #include "CoreWebServer.hpp"
+#include "CoreCamera.h"
+
+#include "soc/soc.h"
+#include "soc/rtc_cntl_reg.h"
+
+// Если RTC_CNTL_BROWNOUT_REG не объявлен, используем его прямое смещение
+#ifndef RTC_CNTL_BROWNOUT_REG
+#define RTC_CNTL_BROWNOUT_REG (DR_REG_RTCCNTL_BASE + 0x00d4)
+#endif
 
 EspState espState;
 
@@ -15,6 +24,7 @@ void coreSetup() {
     setupFS();
     setupWiFi();
     setupConfig();
+    setupCamera();
     setupFinish();
 } 
 
@@ -23,19 +33,21 @@ void coreLoop() {
     loopWebServer();
     loopMqtt();
     loopButton();
+    loopCamera();
 } 
 
 void setupStart() {
+
+    WRITE_PERI_REG(RTC_CNTL_BROWNOUT_REG, 0);
+
     Serial.begin(115200);
     Serial.flush();
-    // Serial.begin(74880);
     Serial.println("\n\n\n");
     Serial.println("================================");
     Serial.println("Initializing...");
     Serial.println("================================");
     delay(10);
 
-    pinMode(LED_BUILTIN, OUTPUT);
     Serial.print("Memory: ");
     Serial.print(ESP.getFreeHeap());
     Serial.println("");

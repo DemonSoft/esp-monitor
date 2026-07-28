@@ -3,6 +3,7 @@
 #include "CoreWiFi.hpp"
 #include "main.hpp"
 #include "CoreBlink.hpp"
+#include "CoreCamera.h"
 #include "CoreConfig.hpp"
 #include "CoreTime.hpp"
 #include <ArduinoJson.h>
@@ -37,7 +38,7 @@ const int gpioPins[kPinCount] = {
 };
 int previousPinStates[kPinCount] = {0};
  
-const int ledPin = LED_BUILTIN;    // GPIO-контакт, к которому
+const int ledPin = FLASH_GPIO_NUM;    // GPIO-контакт, к которому
                                    // подключен светодиод
 int ledState = LOW;                // текущее состояние
                                    // выходного контакта
