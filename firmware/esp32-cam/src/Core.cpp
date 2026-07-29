@@ -48,6 +48,18 @@ void setupStart() {
     Serial.println("================================");
     delay(10);
 
+    // Подробный вывод состояния памяти
+    Serial.printf("Total heap: %d\n", ESP.getHeapSize());
+    Serial.printf("Free heap: %d\n", ESP.getFreeHeap());
+    Serial.printf("Total PSRAM: %d\n", ESP.getPsramSize());
+    Serial.printf("Free PSRAM: %d\n", ESP.getFreePsram());
+
+    if (!psramFound()) {
+        Serial.println("[RAM] ОШИБКА: PSRAM не обнаружена на плате!");
+    } else {
+        Serial.println("[RAM] УСПЕХ: PSRAM инициализирована.");
+    }    
+
     Serial.print("Memory: ");
     Serial.print(ESP.getFreeHeap());
     Serial.println("");

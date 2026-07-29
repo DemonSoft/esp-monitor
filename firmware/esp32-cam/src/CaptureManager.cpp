@@ -40,10 +40,12 @@ void CaptureManager::triggerCapture() {
         photosTaken++;
         Serial.printf("-> Снимок #%u выполнен | Размер: %u байт\n", photosTaken, fb->len);
         
-        // TODO: На следующем этапе здесь добавится отправка кадра по MQTT!
+        // На следующем шаге здесь будет отправка по MQTT!
         
-        // Обязательно освобождаем буфер
         camera.release(fb);
+    } else {
+        // Мягкое уведомление вместо спама об ошибке
+        Serial.println("[CaptureManager] Камера еще не готова или пропуск кадра...");
     }
 }
 
