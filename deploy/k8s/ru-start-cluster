@@ -124,7 +124,7 @@ echo "📊 Открываем Grafana..."
 open http://localhost:3000
 
 echo "📊 Открываем esp-server..."
-open http://localhost:8080
+open http://localhost:80
 
 echo "🔍 Запуск и открытие веб-интерфейса Kafdrop..."
 minikube service kafdrop-service &
