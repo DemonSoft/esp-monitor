@@ -6,7 +6,7 @@ void loopMqtt();
 void mqttClientSetup();
 void mqttDisconnect();
 void publishStateMessage();
-void turnOffPingLedIfNeed();
+void publishPhoto(const char* photoData, size_t length);
 void connectToMqtt();
 void resetMQTTTimers();
 void waitingMqttDisconnect();
@@ -15,6 +15,7 @@ bool checkPinStateChanged();
 void publishState();
 void loopPublish();
 void removeTopic(String topic);
+bool isMqttConnected();
 
 String createTopic(const String &name);
 

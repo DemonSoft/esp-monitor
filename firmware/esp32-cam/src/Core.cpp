@@ -6,7 +6,7 @@
 #include "CoreConfig.hpp"
 #include "CoreMQTT.hpp"
 #include "CoreWebServer.hpp"
-#include "CoreCamera.h"
+#include "CoreCamera.hpp"
 
 #include "soc/soc.h"
 #include "soc/rtc_cntl_reg.h"

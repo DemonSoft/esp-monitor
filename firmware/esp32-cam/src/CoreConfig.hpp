@@ -62,6 +62,7 @@ String buildSsdpName();
 String mqttBaseTopic();
 String mqttActionTopic();
 String mqttStateTopic();
+String mqttPhotoTopic();
 
 void acessPointConfigurationSetup();
 void usualConfigurationSetup();

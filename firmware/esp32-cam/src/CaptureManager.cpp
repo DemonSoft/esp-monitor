@@ -1,4 +1,5 @@
-#include "CaptureManager.h"
+#include "CaptureManager.hpp"
+#include "CoreMQTT.hpp"
 
 CaptureManager::CaptureManager(CameraManager& cameraRef) : camera(cameraRef) {}
 
@@ -35,12 +36,17 @@ void CaptureManager::stop() {
 }
 
 void CaptureManager::triggerCapture() {
+    if (!isMqttConnected()) {
+        Serial.printf(".");
+        return;
+    }
+
     camera_fb_t* fb = camera.capture();
     if (fb) {
         photosTaken++;
         Serial.printf("-> Снимок #%u выполнен | Размер: %u байт\n", photosTaken, fb->len);
         
-        // На следующем шаге здесь будет отправка по MQTT!
+        publishPhoto((const char*)fb->buf, fb->len);
         
         camera.release(fb);
     } else {

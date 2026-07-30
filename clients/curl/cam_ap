@@ -1,0 +1,14 @@
+curl -X POST 192.168.4.1:80/config \
+-H "Content-Type: application/json" \
+-d '{
+ 	"WIFI_SSID": "DemonSoft",
+ 	"WIFI_PASS": "Cassiopeya",
+ 	"MDNS": "esp.esp32-cam",
+ 	"SSDP": "esp32-cam",
+ 	"HTTP_PORT": "80",
+ 	"MQTT_HOST": "192.168.1.2",
+ 	"MQTT_PORT": "1883",
+ 	"MQTT_USER": "",
+ 	"MQTT_PASS": "",
+ 	"MQTT_ROOT": "root"
+}'

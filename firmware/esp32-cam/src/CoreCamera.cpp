@@ -1,5 +1,5 @@
-#include "CoreCamera.h"
-#include "CaptureManager.h"
+#include "CoreCamera.hpp"
+#include "CaptureManager.hpp"
 
 CameraManager camera;
 CaptureManager capturer(camera);

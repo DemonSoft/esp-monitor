@@ -2,7 +2,7 @@
 #define CAPTURE_MANAGER_H
 
 #include <Arduino.h>
-#include "CoreCamera.h"
+#include "CoreCamera.hpp"
 
 // Режимы работы
 enum class CaptureMode {

@@ -1,5 +1,4 @@
 #include "CoreCommon.hpp"
-#include "CoreBlink.hpp"
 #include "CoreButton.hpp"
 #include "CoreConfig.hpp"
 
@@ -29,9 +28,6 @@ void loopButton() {
   if (buttonState == HIGH && lastButtonState == LOW) {
     unsigned long pressedDuration = millis() - buttonPressedMillis;
     if (pressedDuration >= longPressTime) {
-      blink(".-.-.-");
-      blink(".-.-.-");
-      blink(".-.-.-");
       deleteConfigFile();
       delay(100);
       ESP.restart();

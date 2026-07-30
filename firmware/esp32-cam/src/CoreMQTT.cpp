@@ -1,9 +1,7 @@
 #include "CoreCommon.hpp"
 #include "CoreMQTT.hpp"
 #include "CoreWiFi.hpp"
-#include "main.hpp"
-#include "CoreBlink.hpp"
-#include "CoreCamera.h"
+#include "CoreCamera.hpp"
 #include "CoreConfig.hpp"
 #include "CoreTime.hpp"
 #include <ArduinoJson.h>
@@ -38,14 +36,6 @@ const int gpioPins[kPinCount] = {
 };
 int previousPinStates[kPinCount] = {0};
  
-const int ledPin = FLASH_GPIO_NUM;    // GPIO-контакт, к которому
-                                   // подключен светодиод
-int ledState = LOW;                // текущее состояние
-                                   // выходного контакта
-
-unsigned long ledPingInterval = 50;
-unsigned long ledPingPrev = 0;
-
 void mqttClientSetup() {
 
   mqttPort = config.mqtt.port;
@@ -71,11 +61,6 @@ void mqttClientSetup() {
   mqttClient.onMessage(onMqttMessage);
   mqttClient.onPublish(onMqttPublish);
 
-  // if (WiFi.isConnected()) {
-  //   Serial.println("Connecting to MQTT...");
-  //   connectToMqtt();
-  // }
-
   Serial.println("MQTT HOST: " + config.mqtt.host);
   Serial.println("MQTT PORT: " + String(config.mqtt.port));
   Serial.println("MQTT USER: " + config.mqtt.user);
@@ -94,7 +79,6 @@ void mqttClientSetup() {
 void loopMqtt() {
   waitingMqttDisconnect();
   publishStateMessage();
-  turnOffPingLedIfNeed();
 }
 
 void waitingMqttDisconnect() {
@@ -107,7 +91,6 @@ void waitingMqttDisconnect() {
 
 void connectToMqtt() { 
   Serial.println("Connecting to MQTT...");
-  blink("..."); // fast blinking while connecting to MQTT  
   mqttClient.connect();
 }
 
@@ -119,7 +102,7 @@ void resetMQTTTimers() {
 bool checkTimerInterval() {
   unsigned long currentMillis = millis();
 
-  if (previousMillis > currentMillis)  // Коррекция после переполнения счетчика через 50 суток.
+  if (previousMillis > currentMillis)  // Correction after counter overflow through 50 days.
     previousMillis = interval - currentMillis;
   
   
@@ -211,6 +194,23 @@ void handleMqttAction(const String &payload) {
     ESP.restart();
 }
 
+void publishPhoto(const char* photoData, size_t length) {
+
+    if (!mqttClient.connected()) return;
+    
+    String topic = mqttPhotoTopic();
+    uint16_t packetId = mqttClient.publish(
+    topic.c_str(), 
+    0,                  // QoS 0 (for photo stream)
+    false,              // Retain
+    photoData, 
+    length);
+}
+
+bool isMqttConnected() {
+    return mqttClient.connected();
+}
+
 // MQTT callback functions
 // Thre are subscribed to MQTT events and handle them accordingly. 
 // These functions are called when the corresponding MQTT event occurs.
@@ -245,40 +245,21 @@ void mqttDisconnect() {
  
 void onMqttSubscribe(uint16_t packetId, uint8_t qos) {
   Serial.println("Subscribe acknowledged.");
-             //  "Подписка подтверждена."
-  Serial.print("  packetId: ");  //  "  ID пакета: "
+  Serial.print("  packetId: ");
   Serial.println(packetId);
-  Serial.print("  qos: ");  //  "  Уровень качества обслуживания: "
+  Serial.print("  qos: ");
   Serial.println(qos);
 }
  
 void onMqttUnsubscribe(uint16_t packetId) {
   Serial.println("Unsubscribe acknowledged.");
-            //  "Отписка подтверждена."
   Serial.print("  packetId: ");
   Serial.println(packetId);
 }
  
 void onMqttPublish(uint16_t packetId) {
-     ledState = HIGH;
-     digitalWrite(ledPin, ledState);
-     ledPingPrev = millis();
-}
-
-void turnOffPingLedIfNeed() {
-  if (!espState.mqtt_connected) return;
-
-  unsigned long current = millis();
-  if (ledState == HIGH && current - ledPingPrev > ledPingInterval) {
-    ledState = LOW;
-    ledPingPrev = current;
-    digitalWrite(ledPin, ledState);
-  }
 }
  
-// этой функцией управляется то, что происходит
-// при получении того или иного сообщения в топике «esp32/led»;
-// (если хотите, можете ее отредактировать):
 void mqttMessage(char* topic, char* payload, size_t len, size_t index, size_t total, int qos, int dup, int retain) {
   String messageTemp;
   for (size_t i = 0; i < len; i++) {

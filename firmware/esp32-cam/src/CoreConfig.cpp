@@ -5,7 +5,6 @@
 #include "CoreWiFi.hpp"
 #include "CoreWebServer.hpp"
 #include "CoreMQTT.hpp"
-#include "CoreBlink.hpp"
 
 Config config;
 time_t started = 0;
@@ -24,7 +23,6 @@ void loopConfig() {
 
 void acessPointConfigurationSetup() {
   // Start the access point for configuration
-  blink("...");
   Serial.println("Starting setup AP.");
   espState.access_exists = false;
 
@@ -33,7 +31,6 @@ void acessPointConfigurationSetup() {
 
 void usualConfigurationSetup() {
     espState.access_exists = true;
-    blink("---");
 
     if (connectToWifi()) {
       webServerSetup(config.ssdp.http_port);
@@ -308,4 +305,8 @@ String mqttActionTopic() {
 
 String mqttStateTopic() {
   return mqttBaseTopic() + "/state";
+}
+
+String mqttPhotoTopic() {
+  return mqttBaseTopic() + "/photo";
 }
