@@ -25,6 +25,13 @@ const (
 	defaultRemoveAfterReceive = true
 )
 
+const (
+	topicPlain  = "plain"
+	topicState  = "state"
+	topicAction = "action"
+	topicPhoto  = "photo"
+)
+
 type Database interface {
 	UpdateDevice(device model.Device) error
 	UpdateDeviceAction(ssdp string, action string) error
@@ -33,6 +40,7 @@ type Database interface {
 type Kafka interface {
 	PinsMessage(device model.Device)
 	ActionMessage(ssdp string, action string)
+	PhotoMessage(ssdp string, message string)
 }
 
 type MqttService struct {
@@ -169,16 +177,20 @@ func (s *MqttService) handlingProcess(msg mqtt.Message) {
 
 	switch segment {
 
-	case "plain":
+	case topicPlain:
 		s.receivedPlainMessage(msg)
 		return
 
-	case "state":
+	case topicState:
 		s.receivedDeviceMessage(msg)
 		return
 
-	case "action":
+	case topicAction:
 		s.receivedActionMessage(msg)
+		return
+
+	case topicPhoto:
+		s.receivedPhotoMessage(msg)
 		return
 
 	}

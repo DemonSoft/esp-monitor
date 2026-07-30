@@ -12,6 +12,7 @@ const (
 	actionsTopic = "actions"
 	logsTopic    = "logs"
 	pinsTopic    = "pins"
+	photosTopic  = "photos"
 
 	showingMessages = true
 )
@@ -89,6 +90,31 @@ func (k *Kafka) ActionMessage(ssdp string, action string) {
 		}
 		if showingMessages {
 			fmt.Printf("[Action] Message saved to partition %d with offset %d\n", r.Partition, r.Offset)
+		}
+	})
+}
+
+func (k *Kafka) PhotoMessage(ssdp string, message string) {
+
+	if k.client == nil {
+		return
+	}
+
+	record := &kgo.Record{
+		Key:   []byte(ssdp),
+		Value: []byte(message),
+	}
+
+	record.Topic = photosTopic
+
+	k.client.Produce(context.Background(), record, func(r *kgo.Record, err error) {
+
+		if err != nil {
+			fmt.Println("[Photos] Delivery message error:", err)
+			return
+		}
+		if showingMessages {
+			fmt.Printf("[Photos] Message saved to partition %d with offset %d\n", r.Partition, r.Offset)
 		}
 	})
 }

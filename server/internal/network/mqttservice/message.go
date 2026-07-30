@@ -81,6 +81,25 @@ func (s *MqttService) receivedActionMessage(msg mqtt.Message) {
 
 }
 
+func (s *MqttService) receivedPhotoMessage(msg mqtt.Message) {
+	ssdp, err := s.extractDeviceFromMsg(msg)
+	if err != nil {
+		domain.Log.Log(err)
+		return
+	}
+	data := msg.Payload()
+
+	str := fmt.Sprintf("%s took photo, %d bytes.", ssdp, len(data))
+	fmt.Println(str)
+	if s.kafka != nil {
+		s.kafka.PhotoMessage(ssdp, str)
+	}
+
+	if defaultRemoveAfterReceive {
+		s.remove(msg.Topic())
+	}
+}
+
 // Pre-Last segment of topic MUST BE the same name as the field SSDP of the device object.
 // For example,
 // if ssdp == esp-001 the topic token/esp-001/state is valid,

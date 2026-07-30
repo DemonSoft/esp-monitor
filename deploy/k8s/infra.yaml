@@ -393,7 +393,7 @@ spec:
         - containerPort: 80
         env:
         - name: XTOKEN
-          value: "019eb656-cbab-7a0e-b1a8-8b6014923877"
+          value: "00000000-0000-0000-0000-000000000000"
         - name: REST_PORT
           value: "80"
         - name: MQTT_HOST
@@ -566,5 +566,6 @@ spec:
           /opt/kafka/bin/kafka-topics.sh --bootstrap-server kafka-service:9092 --create --if-not-exists --topic logs --partitions 1 --replication-factor 1 &&
           /opt/kafka/bin/kafka-topics.sh --bootstrap-server kafka-service:9092 --create --if-not-exists --topic pins --partitions 1 --replication-factor 1 &&
           /opt/kafka/bin/kafka-topics.sh --bootstrap-server kafka-service:9092 --create --if-not-exists --topic anomalies --partitions 1 --replication-factor 1 &&
+          /opt/kafka/bin/kafka-topics.sh --bootstrap-server kafka-service:9092 --create --if-not-exists --topic photos --partitions 1 --replication-factor 1 &&
           echo "=== Topics created successfully ==="
 
