@@ -1,12 +1,14 @@
 package mqttservice
 
 import (
+	"context"
 	"encoding/json"
 	"errors"
 	"fmt"
 	"remoteesp/internal/domain"
 	"remoteesp/internal/model"
 	"strings"
+	"time"
 
 	mqtt "github.com/eclipse/paho.mqtt.golang"
 )
@@ -87,7 +89,16 @@ func (s *MqttService) receivedPhotoMessage(msg mqtt.Message) {
 		domain.Log.Log(err)
 		return
 	}
+
 	data := msg.Payload()
+	filename := fmt.Sprintf("photo_%d.jpg", time.Now().Unix()) // Filename with timestampt
+
+	// data — it's []byte with binary content JPEG
+	_, err = s.minio.UploadPhoto(context.Background(), ssdp, filename, data)
+	if err != nil {
+		domain.Log.Log("Error uploading photo to MinIO: %v", err)
+		return
+	}
 
 	str := fmt.Sprintf("%s took photo, %d bytes.", ssdp, len(data))
 	fmt.Println(str)

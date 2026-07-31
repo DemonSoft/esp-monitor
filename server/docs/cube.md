@@ -74,7 +74,7 @@ sudo minikube tunnel
 kubectl logs deployment/esp-server-deployment -c esp-worker --tail=50
 
 **Перезапуск бэкенда в кубе**
-kubectl rollout restart deployment esp-server-deployment
+kubectl rollout restart deployment/esp-server-deployment
 
 **Проверка доступных сервисов и портов**
 kubectl get svc

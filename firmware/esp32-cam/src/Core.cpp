@@ -24,7 +24,7 @@ void coreSetup() {
     setupFS();
     setupWiFi();
     setupConfig();
-    setupCamera();
+    //setupCamera();
     setupFinish();
 } 
 
@@ -33,7 +33,7 @@ void coreLoop() {
     loopWebServer();
     loopMqtt();
     loopButton();
-    loopCamera();
+    //loopCamera();
 } 
 
 void setupStart() {

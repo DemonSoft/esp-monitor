@@ -3,7 +3,7 @@
 # Function to clean up background processes on exit (Ctrl+C)
 cleanup() {
     echo -e "\n🛑 Stopping all background processes..."
-    kill $TUNNEL_PID $FORWARD_MOSQUITTO_PID $FORWARD_KAFKA_PID $FORWARD_GRAFANA_PID $FORWARD_SERVER_PID 2>/dev/null
+    kill $TUNNEL_PID $FORWARD_MOSQUITTO_PID $FORWARD_KAFKA_PID $FORWARD_GRAFANA_PID $FORWARD_SERVER_PID $FORWARD_MINIO_PID 2>/dev/null
     echo "👋 Environment stopped cleanly."
     exit 0
 }
@@ -114,10 +114,14 @@ FORWARD_GRAFANA_PID=$!
 
 kubectl port-forward service/esp-server-service 8080:80 --address 0.0.0.0 > /dev/null 2>&1 &
 FORWARD_SERVER_PID=$!
+
+kubectl port-forward service/minio-service 9001:9001 --address 0.0.0.0 > /dev/null 2>&1 &
+FORWARD_MINIO_PID=$!
+
 echo "✅ All port-forwards started successfully."
 
 # 7. Open web interfaces for monitoring
-echo "⏳ Waiting for web interfaces to become available (5 seconds)..."
+echo "⏳ Waiting for web interfaces to become available (5 seconds)...)"
 sleep 5
 
 echo "📊 Opening Grafana..."
@@ -125,6 +129,9 @@ open http://localhost:3000
 
 echo "📊 Opening esp-server..."
 open http://localhost:80
+
+echo "📊 Opening Minio..."
+open http://localhost:9001
 
 echo "🔍 Launching and opening Kafdrop via Minikube..."
 minikube service kafdrop-service &
@@ -138,6 +145,7 @@ echo "Backend (esp-server) is available at http://127.0.0.1:80"
 echo "MQTT broker is listening for ESP controllers on port 1883"
 echo "Kafka broker is accessible locally on port 9092"
 echo "Grafana Dashboard is available at http://localhost:3000"
+echo "Minio Dashboard is available at http://localhost:9001"
 echo "--------------------------------------------------"
 echo "💡 PRESS CTRL+C TO STOP ALL SERVICES AND CLEAN UP PORT-FORWARDS"
 echo "--------------------------------------------------"

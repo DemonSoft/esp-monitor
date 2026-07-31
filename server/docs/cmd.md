@@ -24,3 +24,7 @@ go get -u github.com/eclipse/paho.mqtt.golang
 
 **Установка Kafka провайдера**
 go get -u github.com/twmb/franz-go/pkg/kgo
+
+**Установка miniIO**
+go get github.com/minio/minio-go/v7
+go get github.com/minio/minio-go/v7/pkg/credentials

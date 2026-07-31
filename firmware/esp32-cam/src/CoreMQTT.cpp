@@ -28,12 +28,8 @@ bool hasPreviousPinState = false;
 
 // ESP32-DevKit-V1 exposes many GPIOs, but not all are safe or practical to sample as general-purpose inputs.
 // We read a broad set of usable GPIOs here. Excluded pins are reserved for boot/flash/UART or are not exposed as regular GPIOs.
-constexpr int kPinCount = 22;
-const int gpioPins[kPinCount] = {
-  4, 5, 12, 13, 14, 15, 16, 17, 18, 19,
-  21, 22, 23, 25, 26, 27, 32, 33, 34, 35,
-  36, 39
-};
+constexpr int kPinCount = 2;
+const int gpioPins[kPinCount] = { 12, 13 };
 int previousPinStates[kPinCount] = {0};
  
 void mqttClientSetup() {
@@ -194,17 +190,23 @@ void handleMqttAction(const String &payload) {
     ESP.restart();
 }
 
-void publishPhoto(const char* photoData, size_t length) {
-
+void publishPhoto(const uint8_t* photoData, size_t length) {
     if (!mqttClient.connected()) return;
     
     String topic = mqttPhotoTopic();
     uint16_t packetId = mqttClient.publish(
-    topic.c_str(), 
-    0,                  // QoS 0 (for photo stream)
-    false,              // Retain
-    photoData, 
-    length);
+        topic.c_str(), 
+        0,                  // QoS 0 (for photo stream)
+        false,              // Retain0
+        reinterpret_cast<const char*> (photoData),          // Send raw byte array (uint8_t*)
+        length
+    );
+
+    if (packetId == 0) {
+        Serial.println("[MQTT] Error  sending photo (buffer overflow or no memory)!");
+    } else {
+        Serial.printf("[MQTT] Photo sent, Packet ID: %u\n", packetId);
+    }
 }
 
 bool isMqttConnected() {

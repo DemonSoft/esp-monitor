@@ -4,6 +4,7 @@ import (
 	"remoteesp/internal/database/sqlite"
 	"remoteesp/internal/domain"
 	"remoteesp/internal/domain/env"
+	"remoteesp/internal/domain/minioStorage"
 	"remoteesp/internal/network/kafka"
 	"remoteesp/internal/network/mqttservice"
 	"remoteesp/internal/network/rest"
@@ -13,6 +14,9 @@ func main() {
 
 	// Use environtment
 	env.Apply()
+
+	// Create minIO photo storage, if you need
+	minio, _ := minioStorage.NewMinIOClient()
 
 	//Create log provider
 	log := domain.Create()
@@ -30,7 +34,7 @@ func main() {
 
 	// Start MQTT listener
 	mqttCfg := mqttservice.CreateCfg()
-	service := mqttservice.Start(mqttCfg, db)
+	service := mqttservice.Start(mqttCfg, db, minio)
 	service.UpdateKafka(kafka) // add Kafka to MQTT
 	//service.TestSendMessage() // ONLY FOR TESTING!
 	defer service.Close()

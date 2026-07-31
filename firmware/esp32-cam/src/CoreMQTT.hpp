@@ -6,7 +6,7 @@ void loopMqtt();
 void mqttClientSetup();
 void mqttDisconnect();
 void publishStateMessage();
-void publishPhoto(const char* photoData, size_t length);
+void publishPhoto(const uint8_t* photoData, size_t length);
 void connectToMqtt();
 void resetMQTTTimers();
 void waitingMqttDisconnect();

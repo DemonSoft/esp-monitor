@@ -4,6 +4,7 @@ import (
 	"encoding/json"
 	"fmt"
 	"remoteesp/internal/domain"
+	"remoteesp/internal/domain/minioStorage"
 	"remoteesp/internal/model"
 	"strings"
 	"time"
@@ -48,10 +49,11 @@ type MqttService struct {
 	client mqtt.Client
 	db     Database
 	kafka  Kafka
+	minio  *minioStorage.MinIOClient
 }
 
-func Start(cfg Config, db Database) *MqttService {
-	service := &MqttService{cfg: cfg, db: db}
+func Start(cfg Config, db Database, minio *minioStorage.MinIOClient) *MqttService {
+	service := &MqttService{cfg: cfg, db: db, minio: minio}
 	opts := mqtt.NewClientOptions()
 	opts.AddBroker(cfg.broker())
 	opts.SetClientID(cfg.ClientID)
@@ -121,7 +123,7 @@ func (s *MqttService) showMessage(msg mqtt.Message) {
 	if err == nil {
 		fmt.Printf("Data:    %v\n", data)
 	} else {
-		fmt.Printf("Data:    %s\n", string(msg.Payload()))
+		fmt.Printf("Data is %d bytes\n", len(msg.Payload()))
 	}
 	fmt.Printf("---------------------------\n")
 }
@@ -150,7 +152,7 @@ func (s *MqttService) json(msg mqtt.Message) (map[string]any, error) {
 
 	err := json.Unmarshal(msg.Payload(), &data)
 	if err != nil {
-		fmt.Printf("Parsing JSON error: %v\n", err)
+		// fmt.Printf("Parsing JSON error: %v\n", err)
 		return nil, err
 	}
 

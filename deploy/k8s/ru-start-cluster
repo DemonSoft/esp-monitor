@@ -3,7 +3,7 @@
 # Функция очистки фоновых процессов при выходе (Ctrl+C)
 cleanup() {
     echo -e "\n🛑 Останавливаем все фоновые процессы..."
-    kill $TUNNEL_PID $FORWARD_MOSQUITTO_PID $FORWARD_KAFKA_PID $FORWARD_GRAFANA_PID $FORWARD_SERVER_PID 2>/dev/null
+    kill $TUNNEL_PID $FORWARD_MOSQUITTO_PID $FORWARD_KAFKA_PID $FORWARD_GRAFANA_PID $FORWARD_SERVER_PID $FORWARD_MINIO_PID 2>/dev/null
     echo "👋 Окружение успешно остановлено."
     exit 0
 }
@@ -114,6 +114,10 @@ FORWARD_GRAFANA_PID=$!
 
 kubectl port-forward service/esp-server-service 8080:80 --address 0.0.0.0 > /dev/null 2>&1 &
 FORWARD_SERVER_PID=$!
+
+kubectl port-forward service/minio-service 9001:9001 --address 0.0.0.0 > /dev/null 2>&1 &
+FORWARD_MINIO_PID=$!
+
 echo "✅ Все порты успешно проброшены."
 
 # 7. Открываем веб-интерфейсы
@@ -125,6 +129,9 @@ open http://localhost:3000
 
 echo "📊 Открываем esp-server..."
 open http://localhost:80
+
+echo "📊 Открываем Minio..."
+open http://localhost:9001
 
 echo "🔍 Запуск и открытие веб-интерфейса Kafdrop..."
 minikube service kafdrop-service &
@@ -138,6 +145,7 @@ echo "Бэкенд (esp-server) доступен по адресу: http://127.0
 echo "MQTT-брокер ожидает подключения контроллеров на порту: 1883"
 echo "Брокер Kafka доступен локально на порту: 9092"
 echo "Панель Grafana открыта по адресу: http://localhost:3000"
+echo "Панель Minio открыта по адресу: http://localhost:9001"
 echo "--------------------------------------------------"
 echo "💡 НАЖМИТЕ CTRL+C, ЧТОБЫ ОСТАНОВИТЬ ВСЕ СЕРВИСЫ И ЗАКРЫТЬ ПРОБРОСЫ ПОРТОВ"
 echo "--------------------------------------------------"

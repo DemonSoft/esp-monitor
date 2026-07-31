@@ -31,6 +31,15 @@ spec:
   accessModes: [ReadWriteOnce]
   resources: {requests: {storage: 1Gi}}
 
+---
+apiVersion: v1
+kind: PersistentVolumeClaim
+metadata:
+  name: minio-pvc
+spec:
+  accessModes: [ReadWriteOnce]
+  resources: {requests: {storage: 5Gi}}
+
 # --- CONFIG MAPS ---
 ---
 apiVersion: v1
@@ -84,8 +93,17 @@ data:
         uri: "http://victoria-metrics-service:8428/api/v1/import/prometheus"
         encoding:
           codec: "text"
-
 ---
+apiVersion: v1
+kind: Secret
+metadata:
+  name: minio-secret
+type: Opaque
+stringData:
+  rootUser: "minioadmin"
+  rootPassword: "minioadmin-secret-password"
+---
+
 # --- PART 2: INFRASTRUCTURE (Kafka & Mosquitto) ---
 # Kafka Deployment
 apiVersion: apps/v1
@@ -249,6 +267,70 @@ spec:
     - port: 1883
       targetPort: 1883
 
+# --- MinIO Deployment & Service ---
+---
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: minio-deployment
+  labels:
+    app: minio
+spec:
+  replicas: 1
+  selector:
+    matchLabels:
+      app: minio
+  template:
+    metadata:
+      labels:
+        app: minio
+    spec:
+      containers:
+      - name: minio
+        image: minio/minio:RELEASE.2024-01-18T22-51-28Z # или :latest
+        args:
+        - server
+        - /data
+        - --console-address
+        - ":9001"
+        env:
+        - name: MINIO_ROOT_USER
+          valueFrom:
+            secretKeyRef:
+              name: minio-secret
+              key: rootUser
+        - name: MINIO_ROOT_PASSWORD
+          valueFrom:
+            secretKeyRef:
+              name: minio-secret
+              key: rootPassword
+        ports:
+        - containerPort: 9000
+          name: api
+        - containerPort: 9001
+          name: console
+        volumeMounts:
+        - name: minio-data
+          mountPath: /data
+      volumes:
+      - name: minio-data
+        persistentVolumeClaim:
+          claimName: minio-pvc
+---
+apiVersion: v1
+kind: Service
+metadata:
+  name: minio-service
+spec:
+  selector:
+    app: minio
+  ports:
+    - name: api
+      port: 9000
+      targetPort: 9000
+    - name: console
+      port: 9001
+      targetPort: 9001
 ---
 # --- PART 3: MONITORING STACK (VictoriaMetrics, Vector, Grafana) ---
 # VictoriaMetrics Deployment
@@ -378,8 +460,7 @@ spec:
       initContainers:
       - name: wait-for-infra
         image: busybox:1.36
-        command: ['sh', '-c', 'until nc -z -w 2 kafka-service 9092 && nc -z -w 2 mosquitto-service 1883; do echo "Waiting for Kafka and Mosquitto..."; sleep 2; done']
-
+        command: ['sh', '-c', 'until nc -z -w 2 kafka-service 9092 && nc -z -w 2 mosquitto-service 1883 && nc -z -w 2 minio-service 9000; do echo "Waiting for Infra (Kafka, Mosquitto, MinIO)..."; sleep 2; done']
       containers:
       - name: esp-server
         image: demonsoft/esp-server:latest
@@ -412,6 +493,20 @@ spec:
           value: "9092"
         - name: KAFKA_DEFAULT_TOPIC
           value: "root"
+        - name: MINIO_ENDPOINT
+          value: "minio-service:9000"
+        - name: MINIO_BUCKET
+          value: "esp32-photos"
+        - name: MINIO_ACCESS_KEY
+          valueFrom:
+            secretKeyRef:
+              name: minio-secret
+              key: rootUser
+        - name: MINIO_SECRET_KEY
+          valueFrom:
+            secretKeyRef:
+              name: minio-secret
+              key: rootPassword
 ---
 apiVersion: v1
 kind: Service

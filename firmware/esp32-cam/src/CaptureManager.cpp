@@ -46,7 +46,7 @@ void CaptureManager::triggerCapture() {
         photosTaken++;
         Serial.printf("-> Снимок #%u выполнен | Размер: %u байт\n", photosTaken, fb->len);
         
-        publishPhoto((const char*)fb->buf, fb->len);
+        publishPhoto(fb->buf, fb->len);
         
         camera.release(fb);
     } else {
