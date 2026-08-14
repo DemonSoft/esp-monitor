@@ -138,6 +138,10 @@ bool loadConfig() {
     config.mqtt.pass = getStringValue(mqtt["pass"]);
     config.mqtt.root = getStringValue(mqtt["root"]);
   }
+  if (doc["camera"].is<JsonObject>()) {
+    JsonObject camera = doc["camera"].as<JsonObject>();
+    config.camera.mode = getIntValue(camera["mode"], config.camera.mode);
+  }
 
   applyConfigDefaults();
   Serial.println("Configuration loaded from config.json");
@@ -182,6 +186,9 @@ bool saveConfig() {
   mqtt["user"] = config.mqtt.user;
   mqtt["pass"] = config.mqtt.pass;
   mqtt["root"] = config.mqtt.root;
+
+  JsonObject camera = doc["camera"].to<JsonObject>();
+  camera["mode"] = config.camera.mode;
 
   if (serializeJson(doc, configFile) == 0) {
     configFile.close();
@@ -290,6 +297,13 @@ void mergeConfigObject(const JsonObject &source) {
       String v = getStringValue(mqtt["root"]);
       if (v.length()) config.mqtt.root = v;
     }
+  }
+  if (!source["camera"].isNull()) {
+     JsonObject camera = source["camera"].as<JsonObject>();
+     if (!camera["mode"].isNull()) {
+      String v = getStringValue(camera["mode"]);
+      if (v.length()) config.camera.mode = getIntValue(camera["mode"], config.camera.mode);
+     }
   }
 
   applyConfigDefaults();

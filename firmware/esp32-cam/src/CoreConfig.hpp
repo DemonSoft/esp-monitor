@@ -39,12 +39,18 @@ struct MqttConfig {
   String root = "esp32";
 };
 
+struct CameraConfig {
+  int mode = 1;
+};
+
 struct Config {
   WifiConfig wifi;
   SsdConfig ssdp;
   String mdns = "local.esp32";
   MqttConfig mqtt;
+  CameraConfig camera;
 };
+
 
 extern Config config;
 extern time_t started;

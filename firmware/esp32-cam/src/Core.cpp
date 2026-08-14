@@ -20,11 +20,11 @@ EspState espState;
 
 void coreSetup() {
     setupStart();
+    setupCamera();
     setupButton();
     setupFS();
     setupWiFi();
     setupConfig();
-    //setupCamera();
     setupFinish();
 } 
 
@@ -33,7 +33,7 @@ void coreLoop() {
     loopWebServer();
     loopMqtt();
     loopButton();
-    //loopCamera();
+    loopCamera();
 } 
 
 void setupStart() {
