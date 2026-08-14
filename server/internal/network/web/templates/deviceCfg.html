@@ -212,6 +212,16 @@
                     </div>
                 </fieldset>
 
+               {{ if .device.IsCamera }}
+                <fieldset>
+                    <legend>Camera Settings</legend>
+                    <div class="form-group">
+                        <label for="camera">Camera mode:</label>
+                        <input type="text" id="camera_mode" placeholder="1" />
+                    </div>
+                </fieldset>
+                {{ end }}
+
                 <button type="submit">Send configuration</button>
             </form>
 
@@ -263,6 +273,9 @@
                             user: document.getElementById("mqtt_user").value,
                             pass: document.getElementById("mqtt_pass").value,
                             root: document.getElementById("mqtt_root").value,
+                        },
+                        camera: {
+                          mode: document.getElementById("camera_mode").value
                         },
                     };
 

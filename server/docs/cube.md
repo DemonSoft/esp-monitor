@@ -113,3 +113,9 @@ kubectl logs -f deployment/esp-worker-deployment -c esp-worker
 **Задание секретного ключа в кластере**
 kubectl create secret generic ai-worker-secrets \
   --from-literal=OPENROUTER_API_KEY="<OPENROUTER_API_KEY>"
+
+
+## Minicube build
+eval $(minikube docker-env)
+docker build --no-cache -t demonsoft/esp-server:latest .
+kubectl rollout restart deployment esp-server-deployment

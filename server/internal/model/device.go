@@ -24,6 +24,12 @@ type Device struct {
 	Action    string
 }
 
+// Flag for esp32-cam devices
+func (d Device) IsCamera() bool {
+	lower := strings.ToLower(d.MDNS)
+	return strings.Contains(lower, "-cam")
+}
+
 func (d Device) ActivatedHuman() string {
 	if d.Activated == 0 {
 		return ""
