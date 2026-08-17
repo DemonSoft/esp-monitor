@@ -28,10 +28,12 @@ bool hasPreviousPinState = false;
 
 // ESP32-DevKit-V1 exposes many GPIOs, but not all are safe or practical to sample as general-purpose inputs.
 // We read a broad set of usable GPIOs here. Excluded pins are reserved for boot/flash/UART or are not exposed as regular GPIOs.
-constexpr int kPinCount = 2;
-const int gpioPins[kPinCount] = { 12, 13 };
+constexpr int kPinCount = 3;
+const int gpioPins[kPinCount] = { 12, 13, 14 }; // Add more GPIOs as needed, but be cautious of pins that may interfere with boot or other functions
 int previousPinStates[kPinCount] = {0};
  
+const bool messageDetails = false; // Set to true to print detailed message information
+
 void mqttClientSetup() {
 
   mqttPort = config.mqtt.port;
@@ -280,24 +282,29 @@ void mqttMessage(char* topic, char* payload, size_t len, size_t index, size_t to
     handleMqttAction(messageTemp);
   }
 
-  Serial.println("");
-  Serial.println("Publish received.");
-  Serial.print("  topic: ");
-  Serial.println(topicStr);
-  Serial.print("  message: ");
-  Serial.println(messageTemp);
-  Serial.print("  qos: ");
-  Serial.println(qos);
-  Serial.print("  dup: ");
-  Serial.println(dup);
-  Serial.print("  retain: ");
-  Serial.println(retain);
-  Serial.print("  len: ");
-  Serial.println(len);
-  Serial.print("  index: ");
-  Serial.println(index);
-  Serial.print("  total: ");
-  Serial.println(total);
+  if (messageDetails) {
+    Serial.println("");
+    Serial.println("Publish received.");
+    Serial.print("  topic: ");
+    Serial.println(topicStr);
+    Serial.print("  message: ");
+    Serial.println(messageTemp);
+    Serial.print("  qos: ");
+    Serial.println(qos);
+    Serial.print("  dup: ");
+    Serial.println(dup);
+    Serial.print("  retain: ");
+    Serial.println(retain);
+    Serial.print("  len: ");
+    Serial.println(len);
+    Serial.print("  index: ");
+    Serial.println(index);
+    Serial.print("  total: ");
+    Serial.println(total);
+  }
+  else {
+    Serial.printf("-  Topic %s received, lengh: %d bytes. QOS: %d\n", topic, len, qos);
+  }
 }
 
 void onMqttDisconnect(AsyncMqttClientDisconnectReason reason) {

@@ -43,5 +43,6 @@ void setupCamera();
 void loopCamera();
 
 void processPhoto(camera_fb_t* fb);
+void startCamera();
 
 #endif // CORE_CAMERA_H

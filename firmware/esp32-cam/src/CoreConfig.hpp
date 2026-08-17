@@ -40,7 +40,7 @@ struct MqttConfig {
 };
 
 struct CameraConfig {
-  int mode = 1;
+  int mode = 0; // 0 - IDLE, 1 - continuous, 2 - burst count, 3 - burst time
 };
 
 struct Config {
@@ -64,6 +64,7 @@ bool deleteConfigFile();
 void applyConfigDefaults();
 void ensureSsdpName();
 void mergeConfigObject(const JsonObject &source);
+void cameraState();
 String buildSsdpName();
 String mqttBaseTopic();
 String mqttActionTopic();

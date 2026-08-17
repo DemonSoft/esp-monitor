@@ -1,6 +1,8 @@
 #include "CaptureManager.hpp"
 #include "CoreMQTT.hpp"
 
+const int PHOTORESITER_GPIO_NUM = 14; // GPIO для фотодатчика (определяет, когда делать снимок)
+
 CaptureManager::CaptureManager(CameraManager& cameraRef) : camera(cameraRef) {}
 
 void CaptureManager::startContinuous(uint32_t intervalSec) {
@@ -36,6 +38,7 @@ void CaptureManager::stop() {
 }
 
 void CaptureManager::triggerCapture() {
+    if (isNight()) return; // Если фотодатчик не активен, выходим
     if (!isMqttConnected()) {
         Serial.printf(".");
         return;
@@ -80,4 +83,8 @@ void CaptureManager::update() {
             stop();
         }
     }
+}
+
+bool CaptureManager::isNight() {
+    return digitalRead(PHOTORESITER_GPIO_NUM) == HIGH;
 }

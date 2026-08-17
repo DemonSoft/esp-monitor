@@ -1,5 +1,6 @@
 #include "CoreCamera.hpp"
 #include "CaptureManager.hpp"
+#include "CoreConfig.hpp"
 
 CameraManager camera;
 CaptureManager capturer(camera);
@@ -108,6 +109,8 @@ bool CameraManager::begin() {
 }
 
 camera_fb_t* CameraManager::capture() {
+    if (capturer.isNight()) return nullptr; // Если фотодатчик не активен, выходим
+
     camera_fb_t* fb = esp_camera_fb_get();
     if (!fb) {
         Serial.println("Ошибка захвата кадра!");
@@ -135,11 +138,37 @@ void setupCamera() {
     }
     
     Serial.println("[Camera] Камера успешно инициализирована.");
-    capturer.startContinuous(5); // UNCOMMENT: Снимок каждые 5 секунд
-    // capturer.startBurstCount(5, 3); // UNCOMMENT: Сделать 3 снимка каждые 5 секунд
-    // capturer.startBurstTime(5, 20); // UNCOMMENT: Снимать каждые 5 секунд в течение 20 секунд
+    startCamera();
 }
 
 void loopCamera() {
     capturer.update();
+}
+
+void startCamera() {
+    bootTime = millis();
+    systemReady = true;
+    Serial.printf("[Camera] MODE: %d\n", config.camera.mode);
+    switch (config.camera.mode) {
+        case 0:
+            Serial.println("[Camera] Режим: IDLE (Ожидание команды)");
+            break;
+        case 1:
+            capturer.startContinuous(5);
+            Serial.println("[Camera] Режим: Снимок каждые N секунд");
+            break;
+        case 2:
+            capturer.startBurstCount(5, 3);
+            Serial.println("[Camera] Режим: Сделать M снимков каждые N секунд");
+            break;
+        case 3:
+            capturer.startBurstTime(5, 20);
+            Serial.println("[Camera] Режим: Снимать каждые N секунд в течение K секунд");
+            break;
+        default:
+            Serial.println("[Camera] Режим не определен. Используем режим по умолчанию: Снимок каждые N секунд.");
+    }
+    // capturer.startContinuous(5); // UNCOMMENT: Снимок каждые 5 секунд
+    // capturer.startBurstCount(5, 3); // UNCOMMENT: Сделать 3 снимка каждые 5 секунд
+    // capturer.startBurstTime(5, 20); // UNCOMMENT: Снимать каждые 5 секунд в течение 20 секунд
 }

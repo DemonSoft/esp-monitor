@@ -5,6 +5,7 @@
 #include "CoreWiFi.hpp"
 #include "CoreWebServer.hpp"
 #include "CoreMQTT.hpp"
+#include "CoreCamera.hpp"
 
 Config config;
 time_t started = 0;
@@ -36,6 +37,7 @@ void usualConfigurationSetup() {
       webServerSetup(config.ssdp.http_port);
       startSsdp();
       mqttClientSetup();
+      startCamera();
     } else {
       Serial.println("Failed to connect to WiFi. Starting setup AP.");
       startAccessPoint();

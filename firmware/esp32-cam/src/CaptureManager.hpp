@@ -31,6 +31,9 @@ public:
     bool isActive() const { return currentMode != CaptureMode::IDLE; }
     CaptureMode getMode() const { return currentMode; }
 
+    // Проверка состояния фотодатчика (ночь/день)
+    bool isNight();
+
 private:
     CameraManager& camera;
     CaptureMode currentMode = CaptureMode::IDLE;

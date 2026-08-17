@@ -1,10 +1,11 @@
 package model
 
 type ConfigPayload struct {
-	Wifi WifiConfig `json:"wifi"`
-	Ssdp SsdpConfig `json:"ssdp"`
-	Mdns string     `json:"mdns"`
-	Mqtt MqttConfig `json:"mqtt"`
+	Wifi   WifiConfig   `json:"wifi"`
+	Ssdp   SsdpConfig   `json:"ssdp"`
+	Mdns   string       `json:"mdns"`
+	Mqtt   MqttConfig   `json:"mqtt"`
+	Camera CameraConfig `json:"camera"`
 }
 
 type WifiConfig struct {
@@ -40,4 +41,8 @@ type MqttConfig struct {
 	User string `json:"user"`
 	Pass string `json:"pass"`
 	Root string `json:"root"`
+}
+
+type CameraConfig struct {
+	Mode string `json:"mode"`
 }
