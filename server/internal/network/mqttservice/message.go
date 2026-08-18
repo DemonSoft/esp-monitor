@@ -100,10 +100,12 @@ func (s *MqttService) receivedPhotoMessage(msg mqtt.Message) {
 		return
 	}
 
-	str := fmt.Sprintf("%s took photo, %d bytes.", ssdp, len(data))
+	lenght := len(data)
+	str := fmt.Sprintf("%s took photo, %d bytes.", ssdp, lenght)
 	fmt.Println(str)
 	if s.kafka != nil {
-		s.kafka.PhotoMessage(ssdp, str)
+		bucket := s.minio.GetBucket()
+		s.kafka.PhotoMessage(ssdp, bucket, filename, lenght)
 	}
 
 	if defaultRemoveAfterReceive {

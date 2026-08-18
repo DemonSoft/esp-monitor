@@ -159,5 +159,25 @@ osascript -e "tell application \"Terminal\"
     activate
 end tell"
 
+osascript -e "tell application \"Terminal\"
+    do script \"kubectl logs -f deployment/kworker-deployment -c kworker\"
+    activate
+end tell"
+
+osascript -e "tell application \"Terminal\"
+    do script \"kubectl logs -f deployment/ai-worker-deployment -c ai-worker\"
+    activate
+end tell"
+
+osascript -e "tell application \"Terminal\"
+    do script \"kubectl logs -f deployment/hworker-deployment -c hworker\"
+    activate
+end tell"
+
+osascript -e "tell application \"Terminal\"
+    do script \"kubectl logs -f deployment/pworker-deployment -c pworker\"
+    activate
+end tell"
+
 # Оставляем скрипт активным для работы перехватчика trap
 wait

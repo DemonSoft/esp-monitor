@@ -2,6 +2,7 @@ package kafka
 
 import (
 	"context"
+	"encoding/json"
 	"fmt"
 	"remoteesp/internal/model"
 
@@ -94,15 +95,23 @@ func (k *Kafka) ActionMessage(ssdp string, action string) {
 	})
 }
 
-func (k *Kafka) PhotoMessage(ssdp string, message string) {
+func (k *Kafka) PhotoMessage(ssdp string, bucket string, filemname string, size int) {
 
 	if k.client == nil {
 		return
 	}
 
+	dict := map[string]any{"bucket": bucket, "size": size, "file": filemname}
+
+	jsonData, err := json.Marshal(dict)
+	if err != nil {
+		fmt.Println("Error marshalling to JSON:", err)
+		return
+	}
+
 	record := &kgo.Record{
 		Key:   []byte(ssdp),
-		Value: []byte(message),
+		Value: []byte(jsonData),
 	}
 
 	record.Topic = photosTopic

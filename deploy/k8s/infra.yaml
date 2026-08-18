@@ -632,6 +632,53 @@ spec:
         - name: WEBHOOK_URL
           value: "http://host.minikube.internal:8080/webhook"  
 
+# pworker Deployment
+---
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: pworker-deployment
+spec:
+  replicas: 1
+  selector:
+    matchLabels:
+      app: pworker
+  template:
+    metadata:
+      labels:
+        app: pworker
+    spec:
+      
+      initContainers:
+      - name: wait-for-infra
+        image: busybox:1.36
+        command: ['sh', '-c', 'until nc -z -w 2 kafka-service 9092 && nc -z -w 2 mosquitto-service 1883; do echo "Waiting for Kafka and Mosquitto..."; sleep 2; done']
+
+      containers:
+      - name: pworker
+        image: demonsoft/pworker:latest
+        imagePullPolicy: IfNotPresent
+        env:
+        - name: KAFKA_HOST
+          value: "kafka-service"
+        - name: KAFKA_PORT
+          value: "9092"
+        - name: KAFKA_DEFAULT_TOPIC
+          value: "actions"
+        - name: MINIO_ENDPOINT
+          value: "minio-service:9000"
+        - name: MINIO_ACCESS_KEY
+          valueFrom:
+            secretKeyRef:
+              name: minio-secret
+              key: rootUser
+        - name: MINIO_SECRET_KEY
+          valueFrom:
+            secretKeyRef:
+              name: minio-secret
+              key: rootPassword
+
+
 # Kafka Topic Initialization Job
 ---
 apiVersion: batch/v1

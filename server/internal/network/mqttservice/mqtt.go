@@ -41,7 +41,7 @@ type Database interface {
 type Kafka interface {
 	PinsMessage(device model.Device)
 	ActionMessage(ssdp string, action string)
-	PhotoMessage(ssdp string, message string)
+	PhotoMessage(ssdp string, bucket string, filemname string, size int)
 }
 
 type MqttService struct {

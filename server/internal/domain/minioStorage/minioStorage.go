@@ -13,7 +13,7 @@ import (
 
 type MinIOClient struct {
 	client     *minio.Client
-	bucketName string
+	BucketName string
 }
 
 func NewMinIOClient() (*MinIOClient, error) {
@@ -54,7 +54,7 @@ func NewMinIOClient() (*MinIOClient, error) {
 
 	return &MinIOClient{
 		client:     minioClient,
-		bucketName: bucketName,
+		BucketName: bucketName,
 	}, nil
 }
 
@@ -67,7 +67,7 @@ func (m *MinIOClient) UploadPhoto(ctx context.Context, deviceID string, filename
 	reader := bytes.NewReader(photoBytes)
 	objectSize := int64(len(photoBytes))
 
-	info, err := m.client.PutObject(ctx, m.bucketName, objectName, reader, objectSize, minio.PutObjectOptions{
+	info, err := m.client.PutObject(ctx, m.BucketName, objectName, reader, objectSize, minio.PutObjectOptions{
 		ContentType: contentType,
 	})
 	if err != nil {
@@ -76,4 +76,8 @@ func (m *MinIOClient) UploadPhoto(ctx context.Context, deviceID string, filename
 
 	log.Printf("Successfully uploaded %s of size %d bytes to MinIO", objectName, info.Size)
 	return objectName, nil
+}
+
+func (m *MinIOClient) GetBucket() string {
+	return m.BucketName
 }
