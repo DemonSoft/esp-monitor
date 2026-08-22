@@ -280,7 +280,7 @@
                             root: document.getElementById("mqtt_root").value,
                         },
                         camera: {
-                          mode: document.getElementById("camera_mode").value
+                          mode: document.getElementById("camera_mode")?.value || "0"
                         },
                     };
 
@@ -296,22 +296,27 @@
                         },
                         body: JSON.stringify(payload),
                     })
-                        .then((response) => {
-                            if (response.ok) {
-                                return response.text().then((text) => {
-                                    responseDiv.className = "success";
-                                    responseDiv.innerText =
-                                        "Sent successful!\nServer response: " +
-                                        text;
-                                    responseDiv.style.display = "block";
-                                });
-                            } else {
-                                throw new Error(
-                                    "Server error: " + response.status,
-                                );
-                            }
-                        })
-                        .catch((error) => {
+                    .then((response) => {
+                        if (response.ok) {
+                            return response.text().then((text) => {
+                                responseDiv.className = "success";
+                                responseDiv.innerText =
+                                    "Sent successful!\nServer response: " +
+                                    text;
+                                responseDiv.style.display = "block";
+
+                                // Перенаправление через 1.5 секунды (1500 мс)
+                                setTimeout(() => {
+                                    window.location.href = "/devices?token=" + tokenParam;
+                                }, 1500);
+                            });
+                        } else {
+                            throw new Error(
+                                "Server error: " + response.status,
+                            );
+                        }
+                    })
+                    .catch((error) => {
                             responseDiv.className = "error";
                             responseDiv.innerText =
                                 "Sending error:\n" + error.message;
