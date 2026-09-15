@@ -677,7 +677,8 @@ spec:
             secretKeyRef:
               name: minio-secret
               key: rootPassword
-
+        - name: N8N_WEBHOOK_URL
+          value: "http://n8n-service:5678/webhook/esp32-photo"
 
 # Kafka Topic Initialization Job
 ---
@@ -711,3 +712,73 @@ spec:
           /opt/kafka/bin/kafka-topics.sh --bootstrap-server kafka-service:9092 --create --if-not-exists --topic photos --partitions 1 --replication-factor 1 &&
           echo "=== Topics created successfully ==="
 
+# --- PART 5: INTEGRATION & AUTOMATION (n8n) ---
+apiVersion: v1
+kind: PersistentVolumeClaim
+metadata:
+  name: n8n-pvc
+spec:
+  accessModes: [ReadWriteOnce]
+  resources: 
+    requests: 
+      storage: 2Gi
+---
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: n8n-deployment
+  labels:
+    app: n8n
+spec:
+  replicas: 1
+  selector:
+    matchLabels:
+      app: n8n
+  template:
+    metadata:
+      labels:
+        app: n8n
+    spec:
+      containers:
+      - name: n8n
+        image: n8nio/n8n:latest
+        ports:
+        - containerPort: 5678
+          name: http
+        env:
+        - name: N8N_PORT
+          value: "5678"
+        - name: N8N_PROTOCOL
+          value: "http"
+        # Отключаем обязательные HTTPS куки для локальной разработки:
+        - name: N8N_SECURE_COOKIE
+          value: "false"
+        # Используем современную переменную окружения:
+        - name: N8N_WEBHOOK_URL
+          value: "http://n8n-service:5678/webhook/esp32-photo"
+        - name: WEBHOOK_URL
+          value: "http://n8n-service:5678/webhook/esp32-photo"  
+        - name: GENERIC_TIMEZONE
+          value: "Europe/Kyiv"
+        - name: N8N_ENFORCE_SETTINGS_FILE_PERMISSIONS
+          value: "true"
+        volumeMounts:
+        - name: n8n-data
+          mountPath: /home/node/.n8n
+      volumes:
+      - name: n8n-data
+        persistentVolumeClaim:
+          claimName: n8n-pvc
+---
+apiVersion: v1
+kind: Service
+metadata:
+  name: n8n-service
+spec:
+  type: NodePort
+  selector:
+    app: n8n
+  ports:
+    - port: 5678
+      targetPort: 5678
+      nodePort: 30078

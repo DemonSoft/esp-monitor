@@ -3,7 +3,7 @@
 # Function to clean up background processes on exit (Ctrl+C)
 cleanup() {
     echo -e "\n🛑 Stopping all background processes..."
-    kill $TUNNEL_PID $FORWARD_MOSQUITTO_PID $FORWARD_KAFKA_PID $FORWARD_GRAFANA_PID $FORWARD_SERVER_PID $FORWARD_MINIO_PID 2>/dev/null
+    kill $TUNNEL_PID $FORWARD_MOSQUITTO_PID $FORWARD_KAFKA_PID $FORWARD_GRAFANA_PID $FORWARD_SERVER_PID $FORWARD_MINIO_PID $FORWARD_N8N_PID 2>/dev/null
     echo "👋 Environment stopped cleanly."
     exit 0
 }
@@ -34,7 +34,7 @@ minikube start --driver=docker
 
 # 2. Clean up ports from stale processes on macOS
 echo "🔍 Checking local ports for stale processes..."
-for PORT in 1883 9092 9000 3000 8080; do
+for PORT in 1883 9092 9000 3000 8080 5678; do
     PID=$(lsof -t -i:$PORT)
     if [ ! -z "$PID" ]; then
         echo "⚠️ Port $PORT is occupied by process (PID: $PID). Terminating..."
@@ -118,6 +118,9 @@ FORWARD_SERVER_PID=$!
 kubectl port-forward service/minio-service 9001:9001 --address 0.0.0.0 > /dev/null 2>&1 &
 FORWARD_MINIO_PID=$!
 
+kubectl port-forward service/n8n-service 5678:5678 --address 0.0.0.0 > /dev/null 2>&1 &
+FORWARD_N8N_PID=$!
+
 echo "✅ All port-forwards started successfully."
 
 # 7. Open web interfaces for monitoring
@@ -133,6 +136,9 @@ open http://localhost:80
 echo "📊 Opening Minio..."
 open http://localhost:9001
 
+echo "📊 Opening N8n..."
+open http://localhost:5678
+
 echo "🔍 Launching and opening Kafdrop via Minikube..."
 minikube service kafdrop-service &
 
@@ -146,6 +152,7 @@ echo "MQTT broker is listening for ESP controllers on port 1883"
 echo "Kafka broker is accessible locally on port 9092"
 echo "Grafana Dashboard is available at http://localhost:3000"
 echo "Minio Dashboard is available at http://localhost:9001"
+echo "N8n is available at http://localhost:5678"
 echo "--------------------------------------------------"
 echo "💡 PRESS CTRL+C TO STOP ALL SERVICES AND CLEAN UP PORT-FORWARDS"
 echo "--------------------------------------------------"

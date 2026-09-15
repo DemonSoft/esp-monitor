@@ -1,0 +1,104 @@
+{
+  "name": "esp32-photo",
+  "nodes": [
+    {
+      "parameters": {
+        "httpMethod": "POST",
+        "path": "esp32-photo",
+        "options": {}
+      },
+      "type": "n8n-nodes-base.webhook",
+      "typeVersion": 2.1,
+      "position": [
+        -272,
+        0
+      ],
+      "id": "08166a53-2d69-4027-b26f-23fc7fa6e180",
+      "name": "Webhook",
+      "webhookId": "58af0de3-e966-4678-94e1-6d529d6340c7"
+    },
+    {
+      "parameters": {
+        "operation": "sendPhoto",
+        "chatId": "85283352",
+        "binaryData": true,
+        "additionalFields": {
+          "caption": "=📷 Новое фото с устройства: {{ $('Webhook').item.json.body.device_id }}\n⏰ Время: {{ DateTime.fromSeconds($('Webhook').item.json.body.timestamp).setZone('Europe/Kyiv').toFormat('dd.MM.yyyy HH:mm:ss') }}"
+        }
+      },
+      "type": "n8n-nodes-base.telegram",
+      "typeVersion": 1.2,
+      "position": [
+        224,
+        0
+      ],
+      "id": "8939f2c7-366f-4143-ba56-64c412600c34",
+      "name": "Send a photo message",
+      "webhookId": "d9987250-492d-4c16-b9d0-ad19584c4de0",
+      "credentials": {
+        "telegramApi": {
+          "id": "j06IeyOqZTxsHRNy",
+          "name": "Telegram account"
+        }
+      }
+    },
+    {
+      "parameters": {
+        "url": "={{ $json.body.photo_url }}",
+        "options": {
+          "response": {
+            "response": {
+              "responseFormat": "file"
+            }
+          }
+        }
+      },
+      "type": "n8n-nodes-base.httpRequest",
+      "typeVersion": 4.5,
+      "position": [
+        0,
+        0
+      ],
+      "id": "5957adad-80fd-48f0-b405-14400e8b881e",
+      "name": "HTTP Request"
+    }
+  ],
+  "pinData": {},
+  "connections": {
+    "Webhook": {
+      "main": [
+        [
+          {
+            "node": "HTTP Request",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "HTTP Request": {
+      "main": [
+        [
+          {
+            "node": "Send a photo message",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    }
+  },
+  "active": true,
+  "settings": {
+    "executionOrder": "v1",
+    "binaryMode": "separate"
+  },
+  "versionId": "b422e737-a885-4720-9b6b-ca268c16bf18",
+  "meta": {
+    "templateCredsSetupCompleted": true,
+    "instanceId": "d9860c0ec95d5ee4ba7c1aad473ecfdc8b95234cc342ba4216fc1602fe872a0f"
+  },
+  "nodeGroups": [],
+  "id": "KlAoAOi0X04nRduF",
+  "tags": []
+}

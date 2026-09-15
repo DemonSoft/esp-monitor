@@ -124,7 +124,9 @@ func extractPhoto(ctx context.Context, record *kgo.Record, minIoClient *minio.Cl
 		return
 	}
 
-	path := fmt.Sprintf("%s/%s", string(record.Key), pr.File)
+	deviceID := string(record.Key)
+
+	path := fmt.Sprintf("%s/%s", deviceID, pr.File)
 	object, err := minIoClient.GetObject(ctx, pr.Bucket, path, minio.GetObjectOptions{})
 	if err != nil {
 		fmt.Println("Error:", err)
@@ -139,7 +141,11 @@ func extractPhoto(ctx context.Context, record *kgo.Record, minIoClient *minio.Cl
 	}
 
 	if link != "" {
-		fmt.Printf("- %s --> %d bytes\n", path, pr.Size)
+		err = send(deviceID, link)
+		if err != nil {
+			fmt.Println("Error:", err)
+		}
+		fmt.Printf("- %s --> %d bytes. Sent: %t\n", path, pr.Size, err == nil)
 	}
 }
 
